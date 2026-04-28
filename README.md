@@ -22,6 +22,8 @@ The pipeline has three phases, **Read Truth** (scan the codebase, classify the c
 
 A classification system scales ceremony to risk. Two independent modifiers, **trust** (fires when the change touches auth, security, schema, or data boundaries) and **decompose** (fires when the change crosses 2+ architectural boundaries), add or remove pipeline steps based on what the scan finds, not on human guesswork.
 
+![STRUT high-level architecture](docs/strut-architecture/visuals/strut-high-level-architecture.png)
+
 ## What STRUT is and isn't
 
 STRUT is not a code generator, a framework, or a language-specific toolkit. It's an orchestration layer that runs your build, lint, typecheck, and test commands through the Read Truth → Process Change → Update Truth cycle described above, with gates at the points where judgment matters.
@@ -172,6 +174,8 @@ For worked examples of each classification path, see `docs/strut-architecture/mo
 ---
 
 ## Extending STRUT
+
+![STRUT sub-orchestrator reference cards](docs/strut-architecture/visuals/strut-sub-orchestrator-reference-cards.png)
 
 You can build your own skills and agents to extend the pipeline:
 
