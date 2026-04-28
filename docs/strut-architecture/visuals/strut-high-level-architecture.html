@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #fff; padding: 32px; }
+  .arch { max-width: 780px; margin: 0 auto; }
+  .diagram-title { font-size: 18px; font-weight: 600; text-align: center; margin-bottom: 4px; letter-spacing: -0.2px; }
+  .diagram-sub { font-size: 12px; color: #666; text-align: center; margin-bottom: 20px; }
+  /* Legend */
+  .legend { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 16px; padding: 14px 18px; border: 0.5px solid #ddd; border-radius: 10px; margin-bottom: 20px; font-size: 12px; color: #888; }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .leg-box { width: 18px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+  .leg-spec { background: #FAEEDA; border: 1px solid #BA7517; }
+  .leg-impl { background: #E1F5EE; border: 1px solid #0F6E56; }
+  .leg-rev { background: #FAECE7; border: 1px solid #993C1D; }
+  .leg-gate { background: #EF9F27; border: 1px solid #854F0B; }
+  .leg-util { background: #F1EFE8; border: 1px solid #5F5E5A; }
+  .leg-file { background: #f5f5f3; border: 1px dashed #bbb; }
+  .leg-cond { background: #fff; border: 1.5px dashed #bbb; position: relative; }
+  .leg-cond::after { content: ''; position: absolute; inset: 2px; border: 1px dashed #ddd; border-radius: 1px; }
+  .leg-dash { width: 18px; height: 0; border-top: 2px dashed #bbb; }
+  .legend-mods { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; padding-top: 6px; border-top: 0.5px solid #ddd; margin-top: 4px; }
+  .mod-pill { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+  .mp-trust { background: #FCEBEB; color: #791F1F; border: 0.5px solid #F09595; }
+  .mp-decomp { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
+  .legend-mods .mod-explain { font-size: 11px; color: #aaa; }
+  /* Codebase bar */
+  .codebase-bar { text-align: center; padding: 10px 16px; border: 1.5px solid #bbb; border-radius: 8px; background: #f5f5f3; margin-bottom: 6px; }
+  .codebase-bar .title { font-size: 14px; font-weight: 500; }
+  .codebase-bar .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  /* Flow arrows */
+  .flow-arrow { text-align: center; color: #aaa; font-size: 18px; line-height: 1; padding: 4px 0; }
+  .flow-arrow.labeled { font-size: 11px; color: #888; }
+  .flow-arrow.labeled .arr { font-size: 16px; display: block; }
+  /* Entry row */
+  .entry-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 6px 0; }
+  .entry-box { padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; text-align: center; }
+  .human-entry { background: #EF9F27; color: #412402; }
+  .strut-entry { background: #E1F5EE; border: 1px solid #0F6E56; color: #085041; }
+  .entry-arrow { font-size: 12px; color: #888; }
+  /* Phase containers */
+  .phase { border: 0.5px solid #ddd; border-radius: 12px; margin: 8px 0; overflow: hidden; }
+  .phase-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; font-size: 13px; font-weight: 500; }
+  .phase-body { padding: 12px 16px; }
+  .ph-read { background: #E6F1FB; border-color: #85B7EB; }
+  .ph-read .phase-header { background: #B5D4F4; color: #042C53; }
+  .ph-proc { border-color: #B4B2A9; }
+  .ph-proc .phase-header { background: #f5f5f3; color: #1a1a1a; }
+  .ph-upd { background: #EEEDFE; border-color: #AFA9EC; }
+  .ph-upd .phase-header { background: #CECBF6; color: #26215C; }
+  /* Orchestrator boundaries */
+  .orch-boundary { border: 1.5px dashed #bbb; border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .orch-label { font-size: 11px; font-weight: 500; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .orch-label .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #f5f5f3; border: 0.5px solid #ddd; color: #aaa; }
+  /* Agent boxes */
+  .agent-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+  .agent-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .agent { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+  .agent-spec { background: #FAEEDA; border: 0.5px solid #BA7517; color: #633806; }
+  .agent-impl { background: #E1F5EE; border: 0.5px solid #0F6E56; color: #085041; }
+  .agent-rev { background: #FAECE7; border: 0.5px solid #993C1D; color: #712B13; }
+  .agent-util { background: #F1EFE8; border: 0.5px solid #888780; color: #444441; }
+  .agent-script { background: #f5f5f3; border: 0.5px dashed #bbb; color: #888; font-style: italic; }
+  .agent-conditional { border-style: dashed; border-width: 1.5px; position: relative; }
+  .agent-conditional::before { content: ''; position: absolute; inset: -4px; border: 1.5px dashed; border-radius: 9px; pointer-events: none; }
+  .agent-rev.agent-conditional { border-color: #993C1D; }
+  .agent-rev.agent-conditional::before { border-color: #993C1D55; }
+  .agent-spec.agent-conditional { border-color: #BA7517; }
+  .agent-spec.agent-conditional::before { border-color: #BA751755; }
+  /* Modifier annotations */
+  .mod-anno { font-size: 10px; line-height: 1.3; padding: 3px 7px; border-radius: 4px; display: inline-flex; align-items: baseline; gap: 4px; }
+  .mod-anno .if-label { font-weight: 500; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+  .ma-trust { background: #FCEBEB; color: #791F1F; border: 0.5px solid #F09595; }
+  .ma-trust .if-label { color: #A32D2D; }
+  .ma-decomp { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
+  .ma-decomp .if-label { color: #534AB7; }
+  .mod-stack { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+  /* File contracts */
+  .file-contract { font-size: 10px; padding: 2px 7px; border-radius: 3px; background: #f5f5f3; border: 0.5px dashed #bbb; color: #aaa; font-family: 'Courier New', monospace; display: inline-block; margin: 2px 2px; }
+  .fc-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 0.5px dashed #ddd; }
+  /* Human gates */
+  .human-gate { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px; margin: 10px 0; background: #EF9F27; font-size: 13px; font-weight: 500; color: #412402; flex-wrap: wrap; }
+  .human-gate .icon { font-size: 16px; }
+  .human-gate .gate-mods { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+  .gate-mod { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 400; display: inline-flex; align-items: baseline; gap: 3px; }
+  .gate-mod .if-label { font-weight: 500; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .gm-trust { background: rgba(252,235,235,0.75); color: #791F1F; }
+  /* Inner arrows */
+  .inner-arrow { text-align: center; font-size: 14px; color: #aaa; padding: 4px 0; }
+  /* Pipeline bar */
+  .pipeline-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px; background: #f5f5f3; border: 1px dashed #bbb; margin: 10px 0; font-size: 12px; color: #888; }
+  .pipeline-bar code { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 500; color: #1a1a1a; }
+  /* Annotations */
+  .annotation { font-size: 11px; color: #aaa; font-style: italic; margin: 4px 0; padding-left: 4px; }
+  /* Principles footer */
+  .principles { margin-top: 16px; padding: 12px 16px; border: 0.5px solid #ddd; border-radius: 8px; background: #f5f5f3; }
+  .principles .ptitle { font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #888; }
+  .principles .prule { font-size: 12px; color: #888; line-height: 1.6; }
+  .principles .prule code { font-family: 'Courier New', monospace; font-size: 11px; }
+  /* Side notes */
+  .side-note { font-size: 11px; color: #aaa; margin-top: 4px; padding: 4px 8px; border-left: 2px solid #ddd; line-height: 1.5; }
+  .side-note strong { color: #666; }
+  /* Direct dispatch area */
+  .direct-dispatch { border-left: 2px solid #bbb; padding-left: 10px; margin: 6px 0 6px 4px; }
+  .dd-label { font-size: 10px; color: #aaa; margin-bottom: 4px; }
+  /* Conditional gate (dashed) */
+  .cond-gate { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px; margin: 8px 0; font-size: 12px; font-weight: 500; border: 1.5px dashed #EF9F27; background: #FAEEDA; color: #633806; position: relative; }
+  .cond-gate::before { content: ''; position: absolute; inset: -4px; border: 1.5px dashed #EF9F2755; border-radius: 12px; pointer-events: none; }
+  .cond-gate .icon { font-size: 14px; }
+  /* Loop wrap */
+  .loop-wrap { position: relative; margin: 4px 0 0; padding: 6px 12px 6px 40px; }
+  .loop-wrap svg { position: absolute; left: 2px; top: 0; }
+  /* Modifier callout */
+  .mod-callout { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 8px; background: #f9f8f5; border: 0.5px solid #ddd; margin: 6px 0; font-size: 11px; color: #666; flex-wrap: wrap; }
+  .mod-callout .mc-label { font-weight: 500; font-size: 12px; color: #444; flex-shrink: 0; }
+  .mod-callout .mc-pair { display: inline-flex; align-items: center; gap: 4px; }
+  .mod-callout .mc-key { font-weight: 500; }
+  .mod-callout .mc-val { font-family: 'Courier New', monospace; font-size: 11px; padding: 1px 6px; border-radius: 3px; background: #eee; }
+  .mod-callout .mc-sep { color: #ccc; margin: 0 2px; }
+</style>
+</head><body>
+<div class="arch">
+  <div class="diagram-title">STRUT high-level architecture</div>
+  <div class="diagram-sub">Complete pipeline — 19 standard-path components + 2 trust-ON agents · all file contracts · all modifier annotations</div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="leg-box leg-spec"></div>Specification / planning</div>
+    <div class="legend-item"><div class="leg-box leg-impl"></div>Implementation</div>
+    <div class="legend-item"><div class="leg-box leg-rev"></div>Review / evaluation</div>
+    <div class="legend-item"><div class="leg-box leg-gate"></div>Human gate</div>
+    <div class="legend-item"><div class="leg-box leg-util"></div>Utility / git</div>
+    <div class="legend-item"><div class="leg-box leg-file"></div>File contract</div>
+    <div class="legend-item"><div class="leg-dash"></div>Context isolation boundary</div>
+    <div class="legend-item"><div class="leg-box leg-cond"></div>Modifier-activated (not in standard path)</div>
+    <div></div>
+    <div class="legend-mods"><span class="mod-pill mp-trust">if trust ON</span><span class="mod-pill mp-decomp">if decompose ON</span><span class="mod-explain">Independent binary modifiers — each annotation shows which one activates it</span></div>
+  </div>
+
+  <!-- Codebase -->
+  <div class="codebase-bar"><div class="title">Codebase + tests + knowledge substrate</div><div class="sub">Source of truth — persistent. Read by scan, written by merge. Rules in .claude/rules/, enrichment in docs/user-context/</div></div>
+  <div class="flow-arrow">↓</div>
+
+  <!-- Entry -->
+  <div class="entry-row"><div class="entry-box human-entry">Human</div><div class="entry-arrow">$ARGS →</div><div class="entry-box strut-entry">run-strut</div></div>
+  <div class="annotation" style="text-align:center">Entry point — dispatches three phases sequentially. On resume: reads process-change-state.json, skips completed phases.</div>
+
+  <!-- Step mode callout -->
+  <div class="mod-callout" style="background:#f5f5f3; border-color:#ccc;">
+    <span class="mc-label">Step mode:</span>
+    <span class="mc-val" style="font-size:12px">/run-strut --step &lt;change description&gt;</span>
+    <span style="color:#aaa; margin-left:4px">— Pauses after every dispatch. Type <code style="font-size:11px;background:#eee;padding:1px 5px;border-radius:3px">continue</code> or <code style="font-size:11px;background:#eee;padding:1px 5px;border-radius:3px">abort</code> at each pause. Per-invocation flag — omit on resume to disable.</span>
+  </div>
+
+  <div class="flow-arrow">↓</div>
+
+  <!-- Phase 1: Read Truth -->
+  <div class="phase ph-read"><div class="phase-header"><span>Phase 1: Read Truth</span><span style="font-weight:400;font-size:11px">Reads codebase → produces classification + modifiers</span></div><div class="phase-body"><div class="orch-boundary"><div class="orch-label">run-read-truth <span class="tag">phase orchestrator</span> <span class="tag" style="color:#0F6E56">✓ built</span></div><div class="agent-row"><div class="agent agent-impl">truth-repo-impact-scan</div><span style="color:#aaa;font-size:12px;align-self:center">→</span><div class="agent agent-impl">truth-classify</div></div><div class="fc-row"><span class="file-contract">classification.json</span><span class="file-contract">impact-scan.md</span><span class="file-contract">truth-repo-impact-scan-result.json</span><span class="file-contract">classification-log.md</span></div></div></div></div>
+
+  <!-- .pipeline/ bar -->
+  <div class="pipeline-bar"><code>.pipeline/</code> File contract layer — all inter-agent communication passes through structured JSON files. Orchestrators read only status fields.</div>
+
+  <!-- Modifier callout — after Read Truth because truth-classify sets the modifiers -->
+  <div class="mod-callout">
+    <span class="mc-label">Two modifiers × two states:</span>
+    <span class="mc-pair"><span class="mod-pill mp-trust" style="font-size:10px;padding:2px 6px">trust</span> <span class="mc-val">ON</span> | <span class="mc-val">OFF</span></span>
+    <span class="mc-sep">×</span>
+    <span class="mc-pair"><span class="mod-pill mp-decomp" style="font-size:10px;padding:2px 6px">decompose</span> <span class="mc-val">ON</span> | <span class="mc-val">OFF</span></span>
+    <span style="color:#aaa; margin-left:4px">— Set by truth-classify from scan evidence. Human can override at classification review.</span>
+  </div>
+
+  <div class="flow-arrow">↓</div>
+
+  <!-- Phase 2: Process Change -->
+  <div class="phase ph-proc"><div class="phase-header"><span>Phase 2: Process Change</span><span style="font-weight:400;font-size:11px">Spec → implement → review → build → PR</span></div><div class="phase-body"><div class="orch-boundary" style="border-color:#888780"><div class="orch-label">run-process-change <span class="tag">phase orchestrator</span></div>
+
+    <!-- Spec Refinement -->
+    <div class="orch-boundary"><div class="orch-label">run-spec-refinement <span class="tag">sub-orchestrator</span></div>
+      <div class="agent-row">
+        <div class="agent-wrap"><div class="agent agent-spec">spec-derive-intent</div><span class="mod-anno ma-trust"><span class="if-label">if trust ON:</span> populates must_never[] from risk signals + rules</span></div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+        <div class="agent-wrap"><div class="agent agent-spec">spec-write</div><div class="mod-stack"><span class="mod-anno ma-trust"><span class="if-label">if trust ON:</span> +negative criteria from must_never, each with source</span><span class="mod-anno ma-decomp"><span class="if-label">if decompose ON:</span> task breakdown ≤5, each with criteria_ids</span></div></div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+        <div class="agent-wrap"><div class="agent agent-rev">spec-review</div><span class="mod-anno ma-decomp"><span class="if-label">if decompose ON:</span> +Phase 3 decomposition validation (context-fit, eval-fit, merge-fit, dependency-fit)</span></div>
+      </div>
+      <div class="fc-row"><span class="file-contract">intent.json</span><span class="file-contract">spec.json</span><span class="file-contract">spec-review.json</span></div>
+      <div class="annotation">Spec cycle: spec-review fail → spec-write re-runs with both review_issues and validation_issues (max 5 iterations, then human escalation)</div>
+    </div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- Spec approval gate -->
+    <div class="human-gate"><span class="icon">⬥</span><span>Human gate: Spec approval</span><div class="gate-mods"><span class="gate-mod gm-trust"><span class="if-label">if trust ON:</span> 15–30 min architectural review</span></div></div>
+    <div class="annotation" style="padding-left:36px">Standard: 5–10 min. "Override, not approve" — make the spec yours. Approve / revise / reject.</div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- Guarded-decompose: adversarial spec attack -->
+    <div style="margin:0 0 4px 12px;"><span class="mod-anno ma-trust" style="display:inline-flex"><span class="if-label">if trust ON + decompose ON:</span> adversarial spec attack in separate Claude.ai session (1–2 hrs total ceremony)</span></div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- Implementation -->
+    <div class="orch-boundary"><div class="orch-label">run-implementation <span class="tag">sub-orchestrator</span></div>
+      <div class="agent-row">
+        <div class="agent agent-util">git-tool <span style="font-weight:400;font-size:10px">(branch)</span></div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+        <div class="agent agent-impl">impl-write-tests</div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+        <div class="agent agent-impl">impl-write-code</div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+      </div>
+
+      <!-- Review chain (nested) -->
+      <div style="margin-top:8px"><div class="orch-boundary" style="border-color:rgba(153,60,29,0.33)"><div class="orch-label">run-review-chain <span class="tag">sub-orchestrator</span></div>
+        <div class="agent-row">
+          <div class="agent agent-rev">review-scope</div>
+          <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+          <div class="agent agent-rev">review-criteria-eval</div>
+          <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+          <div class="agent-wrap"><div class="agent agent-rev agent-conditional">review-security</div><span class="mod-anno ma-trust"><span class="if-label">if trust ON:</span> dedicated trust boundary reviewer</span></div>
+        </div>
+        <div class="fc-row"><span class="file-contract">review-scope.json</span><span class="file-contract">review-criteria-eval.json</span><span class="file-contract">review-security.json</span><span class="file-contract">review-chain-result.json</span></div>
+      </div></div>
+
+      <div class="inner-arrow">↓</div>
+
+      <!-- Task 1 gate (decompose ON) -->
+      <div class="cond-gate"><span class="icon">⬥</span><span>Task 1 gate</span><span class="mod-anno ma-decomp" style="margin-left:auto"><span class="if-label">if decompose ON:</span> validates AI interpretation after task 1 commit</span></div>
+
+      <div class="inner-arrow">↓</div>
+
+      <div class="agent-row"><span style="color:#aaa;font-size:12px;align-self:center">→</span><div class="agent agent-util">git-tool <span style="font-weight:400;font-size:10px">(commit)</span></div></div>
+
+      <!-- Decompose loop -->
+      <div class="loop-wrap"><svg width="30" height="48" viewBox="0 0 30 48" style="overflow:visible"><defs><marker id="loop-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><path d="M22 42 C22 28, 8 20, 8 6" fill="none" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#loop-arr)"/></svg><span class="mod-anno ma-decomp" style="display:inline-flex"><span class="if-label">if decompose ON:</span> repeats per task (write-tests → write-code → review → commit). Retry budget resets per task.</span></div>
+
+      <div class="fc-row"><span class="file-contract">git-branch-result.json</span><span class="file-contract">tests-result.json</span><span class="file-contract">impl-write-code-result.json</span><span class="file-contract">git-commit-result.json</span><span class="file-contract">active-task.json</span><span class="file-contract">implementation-status.json</span></div>
+      <div class="annotation">Review chain fail → impl-write-code re-runs with feedback (max 3 retries, then human escalation)</div>
+    </div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- Build Check -->
+    <div class="orch-boundary"><div class="orch-label">run-build-check <span class="tag">sub-orchestrator</span></div>
+      <div class="agent-row">
+        <div class="agent agent-script">build-check <span style="font-size:10px">(bash script)</span></div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→ on fail →</span>
+        <div class="agent agent-impl">build-error-cleanup</div>
+      </div>
+      <div class="fc-row"><span class="file-contract">build-check.json</span><span class="file-contract">build-error-cleanup.json</span><span class="file-contract">build-result.json</span></div>
+      <div class="annotation">Max 3 total attempts (initial + 2 retries). Runs build, lint, typecheck, tests.</div>
+    </div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- Direct dispatches: describe-flow + git PR -->
+    <div class="direct-dispatch"><div class="dd-label">Direct dispatches by run-process-change:</div>
+      <div class="agent-row">
+        <div class="agent-wrap"><div class="agent agent-spec agent-conditional">impl-describe-flow</div><span class="mod-anno ma-trust"><span class="if-label">if trust ON:</span> data flow description for PR body (end state, not diff)</span></div>
+        <span style="color:#aaa;font-size:12px;align-self:center">→</span>
+        <div class="agent agent-util">git-tool <span style="font-weight:400;font-size:10px">(pr)</span></div>
+      </div>
+      <div class="fc-row"><span class="file-contract">impl-describe-flow.txt</span><span class="file-contract">git-pr-result.json</span></div>
+    </div>
+
+    <div class="inner-arrow">↓</div>
+
+    <!-- PR review gate -->
+    <div class="human-gate"><span class="icon">⬥</span><span>Human gate: PR review</span><div class="gate-mods"><span class="gate-mod gm-trust"><span class="if-label">if trust ON:</span> validate data flow + schema + RLS</span></div></div>
+    <div class="annotation" style="padding-left:36px">Standard: 5–10 min. Merge / reject → spec | implementation | abort.</div>
+
+    <div class="fc-row" style="border-top:none;margin-top:6px"><span class="file-contract">process-change-state.json</span><span class="file-contract">pr-rejection-feedback.json</span></div>
+
+  </div></div></div>
+
+  <div class="flow-arrow labeled"><span class="arr">↓</span>Human merges PR → codebase updated</div>
+
+  <!-- Phase 3: Update Truth -->
+  <div class="phase ph-upd"><div class="phase-header"><span>Phase 3: Update Truth</span><span style="font-weight:400;font-size:11px">Proposes rule & knowledge updates</span></div><div class="phase-body"><div class="orch-boundary"><div class="orch-label">run-update-truth <span class="tag">phase orchestrator</span></div>
+    <div class="agent-row"><div class="agent-wrap"><div class="agent agent-spec">update-capture</div><span class="mod-anno ma-trust"><span class="if-label">if trust ON:</span> mandatory capture + root_cause analysis</span></div></div>
+    <div class="fc-row"><span class="file-contract">knowledge-proposals.json</span></div>
+    <div class="annotation">Reads diff, spec, reviews, rules_gaps → proposes updates. Human reviews and applies. Never writes to substrate directly.</div>
+    <div class="annotation">Standard: optional under 30-min rule. Process friction (extra spec cycles, review retries, build cleanup) always surfaced regardless.</div>
+  </div></div></div>
+
+  <div class="flow-arrow labeled"><span class="arr">↓</span>Human applies approved proposals</div>
+
+  <!-- Knowledge substrate -->
+  <div class="codebase-bar" style="border-style:dashed"><div class="title" style="font-size:13px">.claude/rules/ · architectural-decisions · system-map · .specs/archive</div><div class="sub">Knowledge substrate — next scan reads updated rules. Self-improving: scan detects gap → change built → update-capture proposes rule → human approves → next scan reads rule.</div></div>
+
+  <!-- Modifier summary -->
+  <div class="side-note" style="margin-top:12px"><strong>Modifier summary:</strong> Trust and decompose are independent binary switches set by classification. <strong>Trust ON</strong> adds: must_never collection in spec-derive-intent, negative criteria in spec-write, review-security (Opus) in review chain, impl-describe-flow before PR, mandatory knowledge capture with root-cause, and deeper human review at both gates. <strong>Decompose ON</strong> adds: task breakdown (≤5) in spec-write, decomposition validation in spec-review, per-task TDD iteration in run-implementation, and task 1 human gate. <strong>Guarded-decompose (both ON)</strong> adds: adversarial spec attack in separate session.</div>
+
+  <!-- Principles -->
+  <div class="principles"><div class="ptitle">Architecture principles</div><div class="prule">Skills orchestrate (shared session context — dispatch + file-status checks, no reasoning work).<br>Agents do work (isolated context — fresh per dispatch, declared model via frontmatter, restricted tools via frontmatter).<br>Information crosses boundaries only through <code>.pipeline/</code> file contracts. Orchestrators read only <code>status</code> fields to route.<br>Tests before implementation (structural — impl-write-code takes test files as input). Tests are permanent assets; code is disposable.<br>Anti-rationalization patterns added reactively: observe failure first, then add the directive.</div></div>
+</div>
+</body></html>

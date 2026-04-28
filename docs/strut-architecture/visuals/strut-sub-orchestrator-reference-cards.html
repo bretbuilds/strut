@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #fff; padding: 32px; }
+  .cards { max-width: 740px; margin: 0 auto; }
+  .diagram-title { font-size: 18px; font-weight: 600; text-align: center; margin-bottom: 4px; letter-spacing: -0.2px; }
+  .diagram-sub { font-size: 12px; color: #666; text-align: center; margin-bottom: 20px; }
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 10px 14px; border: 0.5px solid #ddd; border-radius: 8px; margin-bottom: 16px; font-size: 11px; color: #888; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .lbox { width: 14px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .l-spec { background: #FAEEDA; border: 1px solid #BA7517; }
+  .l-impl { background: #E1F5EE; border: 1px solid #0F6E56; }
+  .l-rev  { background: #FAECE7; border: 1px solid #993C1D; }
+  .l-gate { background: #EF9F27; border: 1px solid #854F0B; }
+  .l-util { background: #F1EFE8; border: 1px solid #888780; }
+  .l-scr  { background: #f5f5f3; border: 1px dashed #bbb; }
+  /* Cards */
+  .card { border: 0.5px solid #ddd; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 16px; gap: 8px; }
+  .card-name { font-size: 15px; font-weight: 500; }
+  .card-right { display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; }
+  .card-type { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .ct-entry { background: #E1F5EE; color: #085041; }
+  .ct-phase { background: #B5D4F4; color: #042C53; }
+  .ct-top { background: #CECBF6; color: #3C3489; }
+  .ct-sub { background: #f5f5f3; color: #888; border: 0.5px solid #ddd; }
+  .ctx-budget { font-size: 11px; color: #aaa; white-space: nowrap; }
+  .card-body { padding: 0 16px 14px; }
+  /* Fields */
+  .field { margin-bottom: 10px; }
+  .field-label { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .field-val { font-size: 12px; line-height: 1.5; color: #1a1a1a; }
+  .field-val code { font-family: 'Courier New', monospace; font-size: 11px; padding: 1px 5px; border-radius: 3px; background: #f5f5f3; }
+  .field-val strong { font-weight: 500; }
+  /* Dispatch sequences */
+  .seq { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0; }
+  .seq-box { padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .s-spec { background: #FAEEDA; border: 0.5px solid #BA7517; color: #633806; }
+  .s-impl { background: #E1F5EE; border: 0.5px solid #0F6E56; color: #085041; }
+  .s-rev  { background: #FAECE7; border: 0.5px solid #993C1D; color: #712B13; }
+  .s-gate { background: #EF9F27; border: 0.5px solid #854F0B; color: #412402; font-weight: 500; }
+  .s-util { background: #F1EFE8; border: 0.5px solid #888780; color: #444441; }
+  .s-scr  { background: #f5f5f3; border: 0.5px dashed #bbb; color: #888; font-style: italic; }
+  .s-orch { background: #f5f5f3; border: 1px dashed #bbb; color: #1a1a1a; font-weight: 500; }
+  .s-phase { background: #E6F1FB; border: 1px solid #85B7EB; color: #042C53; font-weight: 500; }
+  .seq-arr { color: #aaa; font-size: 12px; }
+  .seq-note { font-size: 10px; color: #aaa; font-style: italic; }
+  /* Retry/gate/modifier boxes */
+  .retry-box { font-size: 11px; padding: 6px 10px; border-radius: 6px; background: #f5f5f3; border-left: 3px solid #E24B4A; margin: 4px 0; color: #888; line-height: 1.5; }
+  .retry-box strong { color: #A32D2D; font-weight: 500; }
+  .retry-box code { font-family: 'Courier New', monospace; font-size: 10px; padding: 1px 4px; border-radius: 3px; background: #eee; }
+  .gate-box { font-size: 11px; padding: 6px 10px; border-radius: 6px; background: #FAEEDA; border-left: 3px solid #EF9F27; margin: 4px 0; color: #633806; line-height: 1.5; }
+  .gate-box strong { font-weight: 500; }
+  .mod-box { font-size: 11px; padding: 6px 10px; border-radius: 6px; margin: 4px 0; line-height: 1.5; }
+  .mod-trust { background: #FCEBEB; border-left: 3px solid #E24B4A; color: #791F1F; }
+  .mod-decomp { background: #EEEDFE; border-left: 3px solid #7F77DD; color: #3C3489; }
+  .mod-box strong { font-weight: 500; }
+  .mod-box code { font-family: 'Courier New', monospace; font-size: 10px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.5); }
+  /* Key rules */
+  .key-rule { font-size: 12px; padding: 8px 12px; border-radius: 6px; background: #f5f5f3; border: 0.5px solid #ddd; margin-top: 10px; color: #888; line-height: 1.5; }
+  .key-rule strong { font-weight: 500; color: #1a1a1a; }
+  /* File contract section */
+  .fc-section { margin-top: 16px; padding: 12px 16px; border: 0.5px solid #ddd; border-radius: 10px; background: #f5f5f3; }
+  .fc-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .fc-subtitle { font-size: 11px; color: #aaa; font-style: italic; margin-bottom: 10px; }
+  .fc-group { margin-bottom: 8px; }
+  .fc-group-name { font-size: 12px; font-weight: 500; margin-bottom: 3px; }
+  .fc-files { font-size: 11px; font-family: 'Courier New', monospace; color: #888; line-height: 1.6; }
+  /* Card head variants */
+  .head-entry { background: #E1F5EE; }
+  .head-phase { background: #E6F1FB; }
+  .head-top { background: #EEEDFE; }
+  .head-sub { background: #f5f5f3; }
+  /* Writes row */
+  .writes-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+  .w-file { font-size: 10px; font-family: 'Courier New', monospace; padding: 1px 6px; border-radius: 3px; background: #f5f5f3; border: 0.5px dashed #ddd; color: #aaa; }
+  /* Section divider */
+  .section-divider { font-size: 12px; font-weight: 500; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; padding-bottom: 4px; border-bottom: 0.5px solid #ddd; }
+</style>
+</head><body>
+<div class="cards">
+  <div class="diagram-title">STRUT orchestrator reference cards</div>
+  <div class="diagram-sub">Every skill that dispatches — entry point, phase orchestrators, and sub-orchestrators</div>
+  <div class="legend">
+    <div class="legend-item"><div class="lbox l-spec"></div>Specification</div>
+    <div class="legend-item"><div class="lbox l-impl"></div>Implementation</div>
+    <div class="legend-item"><div class="lbox l-rev"></div>Review</div>
+    <div class="legend-item"><div class="lbox l-gate"></div>Human gate</div>
+    <div class="legend-item"><div class="lbox l-util"></div>Utility / git</div>
+    <div class="legend-item"><div class="lbox l-scr"></div>Bash script</div>
+  </div>
+
+  <!-- ═══════════ ENTRY POINT ═══════════ -->
+
+  <div class="section-divider">Entry point</div>
+
+  <div class="card"><div class="card-head head-entry"><span class="card-name">run-strut</span><div class="card-right"><span class="card-type ct-entry">Entry point skill</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">Human's change description via <code>$ARGUMENTS</code>. Optional <code>--step</code> flag for step mode.</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-phase">run-read-truth</div><span class="seq-arr">→</span><div class="seq-box s-orch">run-process-change</div><span class="seq-arr">→</span><div class="seq-box s-phase">run-update-truth</div></div><div class="seq-note">Three phases, sequential. Thinnest orchestrator — three dispatches with status checks between them.</div></div>
+    <div class="field"><div class="field-label">Resume logic</div><div class="field-val">Reads <code>process-change-state.json</code> — if <code>status == "blocked"</code>, this is a resume. Skip Read Truth, go directly to run-process-change. Otherwise: new run, start from Read Truth.</div></div>
+    <div class="field"><div class="field-label">Step mode</div><div class="field-val">If <code>--step</code> in <code>$ARGUMENTS</code>: writes <code>.pipeline/step-mode</code> flag file. Every orchestrator checks for this flag after each dispatch. Per-invocation — omitting <code>--step</code> on resume removes the flag. Cleaned up after Update Truth completes.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Pipeline complete or blocked at a human gate</div></div>
+    <div class="key-rule"><strong>Key rule:</strong> Never does work itself. Never reads agent-level result files. Dispatches phase orchestrators and checks their returns.</div>
+  </div></div>
+
+  <!-- ═══════════ PHASE ORCHESTRATORS ═══════════ -->
+
+  <div class="section-divider">Phase orchestrators</div>
+
+  <div class="card"><div class="card-head head-phase"><span class="card-name">run-read-truth</span><div class="card-right"><span class="card-type ct-phase">Phase 1 · Read Truth</span><span class="card-type ct-sub" style="color:#0F6E56">✓ built</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">Change description from run-strut</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-impl">truth-repo-impact-scan</div><span class="seq-arr">→</span><div class="seq-box s-impl">truth-classify</div></div><div class="seq-note">Sequential. Scan evidence feeds into classification.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-strut. Human reviews classification + modifiers (trust ON/OFF, decompose ON/OFF) before proceeding. Can override modifiers.</div></div>
+    <div class="field"><div class="field-label">Writes</div><div class="writes-row"><span class="w-file">classification.json</span><span class="w-file">impact-scan.md</span><span class="w-file">truth-repo-impact-scan-result.json</span><span class="w-file">classification-log.md</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> <code>classification-log.md</code> is append-only — never deleted or overwritten across runs. All other <code>.pipeline/</code> files may be cleaned on new runs.</div>
+  </div></div>
+
+  <div class="card"><div class="card-head head-top"><span class="card-name">run-process-change</span><div class="card-right"><span class="card-type ct-top">Phase 2 · Process Change</span><span class="ctx-budget">context: ~5–8 cycles</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val"><code>classification.json</code> + <code>process-change-state.json</code> (for resume detection)</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-orch">run-spec-refinement</div><span class="seq-arr">→</span><div class="seq-box s-gate">⬥ Spec approval</div><span class="seq-arr">→</span><div class="seq-box s-orch">run-implementation</div><span class="seq-arr">→</span><div class="seq-box s-orch">run-build-check</div><span class="seq-arr">→</span><div class="seq-box s-util">git-tool (pr)</div><span class="seq-arr">→</span><div class="seq-box s-gate">⬥ PR review</div></div><div class="seq-note">Trust ON: inserts impl-describe-flow before git-tool (pr). Guarded-decompose: adversarial spec attack after spec approval.</div></div>
+    <div class="field"><div class="field-label">Resume logic</div><div class="field-val">Compares <code>what</code> fields in <code>classification.json</code> vs <code>process-change-state.json</code>. Match → resume from <code>next</code> field, skip completed stages. Mismatch → new run: wipe <code>spec-refinement/</code>, <code>implementation/</code>, <code>build-check/</code>, and <code>update-truth/</code> directories, start fresh.</div></div>
+    <div class="field"><div class="field-label">PR rejection paths</div><div class="field-val">Human chooses target: <strong>spec</strong> (wipe implementation, re-dispatch run-spec-refinement with feedback) · <strong>implementation</strong> (same spec, re-dispatch run-implementation with feedback) · <strong>abort</strong> (pipeline stops). Feedback written to <code>pr-rejection-feedback.json</code>.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-strut: <code>passed</code> | <code>failed</code> | <code>aborted</code></div></div>
+    <div class="field"><div class="field-label">Writes</div><div class="writes-row"><span class="w-file">process-change-state.json</span><span class="w-file">pr-rejection-feedback.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> Delegates multi-step sequences to sub-orchestrators, dispatches standalone agents directly for single-step operations. Reads ONLY sub-orchestrator result files, never individual agent results.</div>
+  </div></div>
+
+  <div class="card"><div class="card-head head-phase"><span class="card-name">run-update-truth</span><div class="card-right"><span class="card-type ct-phase">Phase 3 · Update Truth</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">Completed pipeline state — diff, spec, review results, rules_gaps from scan</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-spec">update-capture</div></div><div class="seq-note">Single dispatch. Thin orchestrator.</div></div>
+    <div class="field"><div class="field-label">Modifier behavior</div><div class="mod-box mod-trust"><strong>Trust ON:</strong> Capture is mandatory (not optional under 30-min rule). Proposals include <code>root_cause</code> analysis of what the review chain caught and why.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-strut. Human reviews and applies proposals outside the pipeline.</div></div>
+    <div class="field"><div class="field-label">Writes</div><div class="writes-row"><span class="w-file">knowledge-proposals.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> update-capture never writes to the knowledge substrate directly — only proposes. <code>process_friction</code> entries are always surfaced regardless of trust level (extra spec cycles, review retries, build cleanup).</div>
+  </div></div>
+
+  <!-- ═══════════ SUB-ORCHESTRATORS ═══════════ -->
+
+  <div class="section-divider">Sub-orchestrators (within Phase 2)</div>
+
+  <div class="card"><div class="card-head head-sub"><span class="card-name">run-spec-refinement</span><div class="card-right"><span class="card-type ct-sub">Sub-orchestrator · spec cycle</span><span class="ctx-budget">context: ~3–5 cycles</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val"><code>classification.json</code> + <code>impact-scan.md</code> + <code>truth-repo-impact-scan-result.json</code></div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-spec">spec-derive-intent</div><span class="seq-arr">→</span><div class="seq-box s-spec">spec-write</div><span class="seq-arr">→</span><div class="seq-box s-rev">spec-review</div></div><div class="seq-note">spec-review performs two phases: quality check + testability check</div></div>
+    <div class="field"><div class="field-label">Modifier behavior</div><div class="mod-box mod-trust"><strong>Trust ON:</strong> spec-derive-intent populates <code>must_never[]</code> from risk signals + rules. spec-write creates negative-type criteria from <code>must_never</code> entries, each with source tracing to intent.</div><div class="mod-box mod-decomp"><strong>Decompose ON:</strong> spec-write produces task breakdown (≤5 tasks, each independently testable) instead of single task. spec-review adds Phase 3: decomposition validation — each task checked for context-fit, eval-fit, merge-fit, dependency-fit.</div></div>
+    <div class="field"><div class="field-label">Retry / loop</div><div class="retry-box"><strong>Spec cycle:</strong> If spec-review fails → spec-write re-runs with feedback (both <code>review_issues</code> and <code>validation_issues</code> simultaneously). <strong>Max 5 total iterations.</strong> Exhausted → return failed, escalate to human.</div></div>
+    <div class="field"><div class="field-label">Fail-fast</div><div class="field-val">spec-derive-intent fails → return failed immediately (no spec cycle entered)</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-process-change: <code>passed</code> | <code>failed</code></div></div>
+    <div class="field"><div class="field-label">Writes (internal)</div><div class="writes-row"><span class="w-file">intent.json</span><span class="w-file">spec.json</span><span class="w-file">spec-review.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> spec-review has two phases (quality + testability) — spec-write gets all feedback simultaneously so it can fix both in one revision, not sequentially across iterations.</div>
+  </div></div>
+
+  <div class="card"><div class="card-head head-sub"><span class="card-name">run-implementation</span><div class="card-right"><span class="card-type ct-sub">Sub-orchestrator · TDD cycle</span><span class="ctx-budget">context: ~3–5 cycles/task</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">Approved <code>spec.json</code> + <code>classification.json</code> (for modifier state)</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence (per task)</div><div class="seq"><div class="seq-box s-util">git-tool (branch)</div><span class="seq-note" style="font-style:normal">skip if exists</span><span class="seq-arr">→</span><div class="seq-box s-impl">impl-write-tests</div><span class="seq-arr">→</span><div class="seq-box s-impl">impl-write-code</div><span class="seq-arr">→</span><div class="seq-box s-orch">run-review-chain</div><span class="seq-arr">→</span><div class="seq-box s-util">git-tool (commit)</div></div></div>
+    <div class="field"><div class="field-label">Modifier behavior</div><div class="mod-box mod-decomp"><strong>Decompose ON:</strong> Steps 2–5 repeat per task (impl-write-tests → impl-write-code → run-review-chain → commit). Writes <code>active-task.json</code> before each task cycle so agents resolve the active task id. Retry budget resets per task. Context compaction between tasks. After task 1 commit → return <code>blocked</code> with <code>gate: "task_1"</code> for human validation.</div></div>
+    <div class="field"><div class="field-label">Retry / loop</div><div class="retry-box"><strong>Review chain fail:</strong> impl-write-code re-runs with feedback from <code>review-chain-result.json</code>. Then run-review-chain re-runs from scratch (all reviewers, clean slate). <strong>Max 3 retries.</strong> Exhausted → return failed, escalate to human.</div></div>
+    <div class="field"><div class="field-label">Fail-fast</div><div class="field-val">impl-write-tests fails → return failed immediately (no TDD cycle entered). impl-write-code fails → return failed immediately (no review attempted).</div></div>
+    <div class="field"><div class="field-label">Human gates</div><div class="gate-box"><strong>Decompose ON only:</strong> Task 1 gate after first task's commit. run-implementation returns <code>blocked</code> with <code>gate: "task_1"</code>. run-process-change handles the pause. On resume, re-dispatches run-implementation with <code>start_task</code> arg.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-process-change: <code>passed</code> | <code>failed</code> | <code>blocked</code> (at task 1 gate)</div></div>
+    <div class="field"><div class="field-label">Writes (internal per task)</div><div class="writes-row"><span class="w-file">git-branch-result.json</span><span class="w-file">tests-result.json</span><span class="w-file">impl-write-code-result.json</span><span class="w-file">git-commit-result.json</span><span class="w-file">active-task.json</span><span class="w-file">implementation-status.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> Delegates review to run-review-chain — does NOT dispatch review-scope / review-criteria-eval / review-security directly. Standard path (decompose OFF) has one task — loop executes once, behavior unchanged.</div>
+  </div></div>
+
+  <div class="card"><div class="card-head head-sub"><span class="card-name">run-review-chain</span><div class="card-right"><span class="card-type ct-sub">Sub-orchestrator · review</span><span class="ctx-budget">context: ~2–3 cycles</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">diff + <code>spec.json</code> (criteria + out_of_scope) + (trust ON: <code>.claude/rules/*</code> + must_never from spec)</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-rev">review-scope</div><span class="seq-arr">→</span><div class="seq-box s-rev">review-criteria-eval</div><span class="seq-arr" style="opacity:.5">→</span><div class="seq-box s-rev" style="opacity:.55;border-style:dashed">review-security</div><span class="seq-note">(trust ON only)</span></div><div class="seq-note">Sequential, fail-fast. Each reviewer gets isolated context.</div></div>
+    <div class="field"><div class="field-label">Modifier behavior</div><div class="mod-box mod-trust"><strong>Trust ON:</strong> Dispatches review-security as third step after review-criteria-eval passes. Same fail-fast behavior applies.</div></div>
+    <div class="field"><div class="field-label">Fail-fast</div><div class="retry-box"><strong>Any reviewer fails → chain stops immediately.</strong> Returns failed with feedback from the failed reviewer. Does not run subsequent reviewers.</div></div>
+    <div class="field"><div class="field-label">Retry behavior</div><div class="retry-box"><strong>On retry</strong> (called again by run-implementation after impl-write-code revises): <strong>always re-runs from review-scope.</strong> Revised implementation may have introduced new scope issues even if scope passed prior. All stale reviewer files removed — every execution starts clean. <strong>Max 3 total retries</strong> — budget managed by parent run-implementation.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-implementation: <code>passed</code> | <code>failed</code> (with aggregated feedback)</div></div>
+    <div class="field"><div class="field-label">Writes (internal)</div><div class="writes-row"><span class="w-file">review-scope.json</span><span class="w-file">review-criteria-eval.json</span><span class="w-file" style="opacity:.5">review-security.json</span><span class="w-file">review-chain-result.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> Each reviewer gets isolated context — diff + its specific reference (spec for review-scope, criteria for review-criteria-eval, rules for review-security). No reviewer sees another's assessment.</div>
+  </div></div>
+
+  <div class="card"><div class="card-head head-sub"><span class="card-name">run-build-check</span><div class="card-right"><span class="card-type ct-sub">Sub-orchestrator · build verification</span><span class="ctx-budget">context: ~1–4 cycles</span></div></div><div class="card-body">
+    <div class="field"><div class="field-label">Receives</div><div class="field-val">Branch with committed implementation (complete codebase on feature branch)</div></div>
+    <div class="field"><div class="field-label">Dispatch sequence</div><div class="seq"><div class="seq-box s-scr">build-check</div><span class="seq-note" style="font-style:normal">(bash script)</span><span class="seq-arr">→ on fail →</span><div class="seq-box s-impl">build-error-cleanup</div><span class="seq-arr">→</span><div class="seq-box s-scr">re-run build-check</div></div></div>
+    <div class="field"><div class="field-label">Retry / loop</div><div class="retry-box"><strong>Max 3 total attempts</strong> (initial + 2 retries). Each retry: build-error-cleanup agent fixes errors → build-check script re-runs. Exhausted → return <code>failed</code> with error details.</div></div>
+    <div class="field"><div class="field-label">Returns</div><div class="field-val">Status to run-process-change via <code>build-result.json</code>: <code>passed</code> | <code>failed</code></div></div>
+    <div class="field"><div class="field-label">Writes (internal)</div><div class="writes-row"><span class="w-file">build-check.json</span><span class="w-file">build-error-cleanup.json</span><span class="w-file">build-result.json</span></div></div>
+    <div class="key-rule"><strong>Key rule:</strong> build-check is a bash script, not an agent — deterministic, no AI judgment. Detects project toolchain and runs build, lint, typecheck, tests. Only build-error-cleanup uses an LLM.</div>
+  </div></div>
+
+  <!-- ═══════════ FILE CONTRACT HIERARCHY ═══════════ -->
+
+  <div class="fc-section"><div class="fc-title">File contract hierarchy</div><div class="fc-subtitle">Each layer reads only its own level — never reaches into child orchestrator internals</div>
+    <div class="fc-group"><div class="fc-group-name">run-strut reads:</div><div class="fc-files">process-change-state.json (resume detection only)</div></div>
+    <div class="fc-group"><div class="fc-group-name">run-process-change reads:</div><div class="fc-files">classification.json · process-change-state.json · spec-refinement status · implementation-status.json · build-result.json · git-pr-result.json</div></div>
+    <div class="fc-group"><div class="fc-group-name">run-spec-refinement reads:</div><div class="fc-files">intent.json (status) · spec.json (status) · spec-review.json (status + feedback for spec-write)</div></div>
+    <div class="fc-group"><div class="fc-group-name">run-implementation reads:</div><div class="fc-files">tests-result.json · impl-write-code-result.json · review-chain-result.json · git-branch-result.json · git-commit-result.json</div></div>
+    <div class="fc-group"><div class="fc-group-name">run-review-chain reads:</div><div class="fc-files">review-scope.json · review-criteria-eval.json · review-security.json (trust ON)</div></div>
+    <div class="fc-group"><div class="fc-group-name">run-build-check reads:</div><div class="fc-files">build-check.json · build-error-cleanup.json</div></div>
+  </div>
+</div>
+</body></html>

@@ -22,7 +22,7 @@ The pipeline has three phases, **Read Truth** (scan the codebase, classify the c
 
 A classification system scales ceremony to risk. Two independent modifiers, **trust** (fires when the change touches auth, security, schema, or data boundaries) and **decompose** (fires when the change crosses 2+ architectural boundaries), add or remove pipeline steps based on what the scan finds, not on human guesswork.
 
-![STRUT high-level architecture](docs/strut-architecture/visuals/strut-high-level-architecture.png)
+[View the full pipeline diagram (interactive HTML)](docs/strut-architecture/visuals/strut-high-level-architecture.html)
 
 ## What STRUT is and isn't
 
@@ -175,7 +175,7 @@ For worked examples of each classification path, see `docs/strut-architecture/mo
 
 ## Extending STRUT
 
-![STRUT sub-orchestrator reference cards](docs/strut-architecture/visuals/strut-sub-orchestrator-reference-cards.png)
+[View the sub-orchestrator reference cards (interactive HTML)](docs/strut-architecture/visuals/strut-sub-orchestrator-reference-cards.html)
 
 You can build your own skills and agents to extend the pipeline:
 
