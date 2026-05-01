@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRUT — Spec-first development pipeline for Claude Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF8;
+    --fg: #1A1A18;
+    --fg-soft: #6B6B63;
+    --fg-muted: #9E9E94;
+    --accent: #C44B25;
+    --accent-soft: #E8D5CC;
+    --border: #E2E2DC;
+    --surface: #F2F2EE;
+    --surface-raised: #FFFFFF;
+    --code-bg: #1A1A18;
+    --code-fg: #E8E8E2;
+    --trust-bg: #FFF0EC;
+    --trust-border: #E8A090;
+    --decompose-bg: #EEF3FF;
+    --decompose-border: #90A8E8;
+    --phase-read: #D4E7D4;
+    --phase-process: #D4DAE7;
+    --phase-update: #E7E0D4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(250,250,248,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--fg);
+  }
+  .nav-links { display: flex; gap: 32px; align-items: center; }
+  .nav-links a {
+    font-size: 14px; font-weight: 400; color: var(--fg-soft);
+    text-decoration: none; transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 20px;
+    background: var(--fg);
+    color: var(--bg);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .nav-cta:hover { opacity: 0.85; color: var(--bg); }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 160px 40px 100px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(44px, 6vw, 72px);
+    font-weight: 400;
+    line-height: 1.1;
+    margin-bottom: 32px;
+    letter-spacing: -1px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero-sub {
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--fg-soft);
+    max-width: 640px;
+    margin-bottom: 40px;
+  }
+  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+  .btn-primary {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 14px 32px;
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 14px 32px;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--fg-soft); }
+
+  /* ── Acronym strip ── */
+  .acronym {
+    padding: 60px 40px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .acronym-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .acronym-item {
+    flex: 1;
+    min-width: 150px;
+    padding: 16px 24px;
+    border-left: 1px solid var(--border);
+  }
+  .acronym-item:first-child { border-left: none; }
+  .acronym-letter {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .acronym-word {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--fg-soft);
+  }
+
+  /* ── Sections ── */
+  section {
+    padding: 100px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-bottom: 16px;
+  }
+  section h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 24px;
+  }
+  section p {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--fg-soft);
+    max-width: 640px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Pipeline diagram ── */
+  .pipeline-section {
+    padding: 100px 40px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .pipeline-diagram {
+    margin-top: 48px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 48px;
+    overflow-x: auto;
+  }
+  .pipeline-phases {
+    display: flex;
+    gap: 2px;
+    align-items: stretch;
+  }
+  .pipeline-phase {
+    flex: 1;
+    padding: 24px;
+    border-radius: 8px;
+    min-width: 200px;
+    position: relative;
+  }
+  .pipeline-phase.ph-read { background: var(--phase-read); }
+  .pipeline-phase.ph-process { background: var(--phase-process); }
+  .pipeline-phase.ph-update { background: var(--phase-update); }
+  .phase-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: rgba(0,0,0,0.35);
+    margin-bottom: 8px;
+  }
+  .phase-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: var(--fg);
+  }
+  .phase-steps {
+    list-style: none;
+    font-size: 13px;
+    color: rgba(0,0,0,0.55);
+    line-height: 2;
+  }
+  .phase-arrow {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    color: var(--fg-muted);
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── Anti-pitch ── */
+  .anti-pitch {
+    padding: 80px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .anti-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 40px;
+  }
+  .anti-card {
+    padding: 28px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+  }
+  .anti-card h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    color: var(--fg);
+  }
+  .anti-card p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--fg-soft);
+    max-width: 100%;
+  }
+
+  /* ── Modifiers ── */
+  .mod-section { padding: 100px 40px; max-width: 900px; margin: 0 auto; }
+  .mod-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 40px;
+  }
+  .mod-card {
+    padding: 28px;
+    border-radius: 10px;
+    border: 1px solid;
+  }
+  .mod-card.mod-trust {
+    background: var(--trust-bg);
+    border-color: var(--trust-border);
+  }
+  .mod-card.mod-decompose {
+    background: var(--decompose-bg);
+    border-color: var(--decompose-border);
+  }
+  .mod-card h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .mod-card .mod-state {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
+    margin-bottom: 14px;
+  }
+  .mod-card p {
+    font-size: 14px; line-height: 1.65; color: var(--fg-soft); max-width: 100%;
+  }
+
+  /* ── Research ── */
+  .research-section { padding: 80px 40px; max-width: 900px; margin: 0 auto; }
+  .research-list {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .research-item {
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .research-tier {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--surface);
+    flex-shrink: 0;
+    min-width: 28px;
+    text-align: center;
+  }
+  .research-tier.t-r { color: var(--accent); background: var(--accent-soft); }
+  .research-tier.t-i { color: #5B6ABF; background: #E8ECF8; }
+  .research-tier.t-p { color: #6B7280; background: #EEEEF0; }
+  .research-tier.t-d { color: #6B7280; background: #EEEEF0; }
+  .research-text {
+    font-size: 14px;
+    color: var(--fg-soft);
+    line-height: 1.55;
+  }
+  .research-text strong { color: var(--fg); font-weight: 500; }
+  .research-legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--fg-soft);
+  }
+  .research-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .research-subhead {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-top: 32px;
+    margin-bottom: 8px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .research-subhead:first-of-type { border-top: none; padding-top: 0; }
+
+  /* ── Roadmap ── */
+  .roadmap-section { padding: 100px 40px; max-width: 900px; margin: 0 auto; }
+  .roadmap-track {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .roadmap-phase {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 0;
+    position: relative;
+  }
+  .roadmap-marker {
+    padding: 24px 24px 24px 0;
+    text-align: right;
+    position: relative;
+  }
+  .roadmap-marker::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .roadmap-phase:first-child .roadmap-marker::after { top: 30px; }
+  .roadmap-phase:last-child .roadmap-marker::after { bottom: calc(100% - 36px); }
+  .roadmap-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    position: absolute;
+    right: -6px;
+    top: 28px;
+    z-index: 1;
+  }
+  .roadmap-dot.dot-future {
+    background: var(--bg);
+    border: 2px solid var(--fg-muted);
+  }
+  .roadmap-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+  }
+  .roadmap-label.label-future { color: var(--fg-muted); }
+  .roadmap-content {
+    padding: 20px 0 36px 32px;
+    border-left: 2px solid var(--border);
+  }
+  .roadmap-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .roadmap-desc {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--fg-soft);
+    max-width: 560px;
+  }
+  .roadmap-items {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .roadmap-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--fg-soft);
+  }
+  .roadmap-tag.tag-done {
+    background: #D4E7D4;
+    color: #2D5A2D;
+  }
+  .roadmap-tag.tag-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  @media (max-width: 768px) {
+    .roadmap-phase { grid-template-columns: 1fr; }
+    .roadmap-marker { text-align: left; padding: 16px 0 4px 20px; }
+    .roadmap-marker::after { left: 0; right: auto; }
+    .roadmap-dot { left: -5px; right: auto; }
+    .roadmap-content { padding: 4px 0 28px 20px; }
+  }
+
+  /* ── Code block ── */
+  .code-section { padding: 80px 40px; max-width: 900px; margin: 0 auto; }
+  .code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: 10px;
+    padding: 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin-top: 32px;
+  }
+  .code-comment { color: #6B7280; }
+  .code-cmd { color: #7DD3FC; }
+  .code-str { color: #A5D6A7; }
+  .code-dim { color: #555; }
+
+  /* ── Footer ── */
+  footer {
+    padding: 60px 40px;
+    border-top: 1px solid var(--border);
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .footer-left {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--fg-muted);
+  }
+  .footer-links {
+    display: flex; gap: 24px;
+  }
+  .footer-links a {
+    font-size: 14px; color: var(--fg-soft);
+    text-decoration: none;
+  }
+  .footer-links a:hover { color: var(--fg); }
+
+  /* ── Dividers ── */
+  .section-divider {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    nav { padding: 14px 20px; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .hero { padding: 120px 20px 60px; }
+    .acronym-inner { flex-direction: column; }
+    .acronym-item { border-left: none; border-top: 1px solid var(--border); padding: 12px 0; }
+    .acronym-item:first-child { border-top: none; }
+    section, .pipeline-section, .anti-pitch, .mod-section, .research-section, .code-section { padding: 60px 20px; }
+    .pipeline-phases { flex-direction: column; }
+    .phase-arrow { transform: rotate(90deg); justify-content: center; padding: 8px 0; }
+    .anti-grid, .mod-grid { grid-template-columns: 1fr; }
+    .pipeline-diagram { padding: 24px; }
+    footer { padding: 40px 20px; }
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero-eyebrow, .hero h1, .hero-sub, .hero-actions {
+    animation: fadeUp 0.6s ease-out both;
+  }
+  .hero h1 { animation-delay: 0.1s; }
+  .hero-sub { animation-delay: 0.2s; }
+  .hero-actions { animation-delay: 0.3s; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">STRUT</div>
+  <div class="nav-links">
+    <a href="#pipeline">Pipeline</a>
+    <a href="#modifiers">Modifiers</a>
+    <a href="#research">Research</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="https://github.com/your-org/strut" class="nav-cta">View on GitHub &rarr;</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-eyebrow">Open-source &middot; Claude Code</div>
+  <h1>The development pipeline that <em>trades speed for rigor</em></h1>
+  <p class="hero-sub">
+    STRUT is a spec-first, TDD-enforced orchestration layer for Claude Code. Instead of generating apps, it processes changes through a structured Read&nbsp;Truth&nbsp;&rarr; Process&nbsp;Change&nbsp;&rarr; Update&nbsp;Truth cycle, with human gates at the points where judgment matters.
+  </p>
+  <div class="hero-actions">
+    <a href="https://github.com/your-org/strut" class="btn-primary">Get started</a>
+    <a href="#pipeline" class="btn-secondary">See the architecture</a>
+  </div>
+</div>
+
+<!-- Acronym -->
+<div class="acronym">
+  <div class="acronym-inner">
+    <div class="acronym-item"><div class="acronym-letter">S</div><div class="acronym-word">Source-anchored</div></div>
+    <div class="acronym-item"><div class="acronym-letter">T</div><div class="acronym-word">Test-driven</div></div>
+    <div class="acronym-item"><div class="acronym-letter">R</div><div class="acronym-word">Research-grounded</div></div>
+    <div class="acronym-item"><div class="acronym-letter">U</div><div class="acronym-word">User-gated</div></div>
+    <div class="acronym-item"><div class="acronym-letter">T</div><div class="acronym-word">Traceable</div></div>
+  </div>
+</div>
+
+<!-- What it is -->
+<section>
+  <div class="section-label">The idea</div>
+  <h2>AI coding tools are fast. That's the problem.</h2>
+  <p>
+    The METR randomized controlled trial found experienced developers believed AI made them 24% faster, but were actually 19% slower. The bottleneck wasn't generation speed. It was intent clarity, spec quality, and review rigor.
+  </p>
+  <p>
+    STRUT is designed around that finding. Every change goes through classification, specification, test-first implementation, fail-fast review, and build verification, with human gates at the two points where judgment can't be automated: spec approval and PR review.
+  </p>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- Pipeline -->
+<div class="pipeline-section" id="pipeline">
+  <div class="section-label">Architecture</div>
+  <h2>Three phases, 19 components, zero trust by default</h2>
+  <p>8 orchestrator skills, 10 worker agents, 1 bash script. All inter-agent communication passes through structured JSON file contracts in <code>.pipeline/</code>. Orchestrators read only status fields, never content.</p>
+
+  <div class="pipeline-diagram">
+    <div class="pipeline-phases">
+      <div class="pipeline-phase ph-read">
+        <div class="phase-num">Phase 1</div>
+        <div class="phase-name">Read Truth</div>
+        <ul class="phase-steps">
+          <li>Repo impact scan</li>
+          <li>Classification</li>
+          <li>Modifier assignment</li>
+        </ul>
+      </div>
+      <div class="phase-arrow">&rarr;</div>
+      <div class="pipeline-phase ph-process">
+        <div class="phase-num">Phase 2</div>
+        <div class="phase-name">Process Change</div>
+        <ul class="phase-steps">
+          <li>Derive intent</li>
+          <li>Spec write &amp; review cycle</li>
+          <li>&bull; Human gate: spec approval</li>
+          <li>Write tests &rarr; write code</li>
+          <li>Scope + criteria review</li>
+          <li>Build check</li>
+          <li>&bull; Human gate: PR review</li>
+        </ul>
+      </div>
+      <div class="phase-arrow">&rarr;</div>
+      <div class="pipeline-phase ph-update">
+        <div class="phase-num">Phase 3</div>
+        <div class="phase-name">Update Truth</div>
+        <ul class="phase-steps">
+          <li>Knowledge capture</li>
+          <li>Decision log proposals</li>
+          <li>Friction surface reporting</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- Anti-pitch -->
+<div class="anti-pitch">
+  <div class="section-label">Honest trade-offs</div>
+  <h2>What STRUT is not</h2>
+  <div class="anti-grid">
+    <div class="anti-card">
+      <h3>Not a code generator</h3>
+      <p>v0, Bolt, and Lovable generate whole apps fast. STRUT assumes you already have a codebase and processes individual changes through a rigorous pipeline. Different tool, different job.</p>
+    </div>
+    <div class="anti-card">
+      <h3>Not framework-specific</h3>
+      <p>STRUT orchestrates your build, lint, typecheck, and test commands. It has no opinions about your language, framework, or test runner.</p>
+    </div>
+    <div class="anti-card">
+      <h3>Not fast for simple changes</h3>
+      <p>Adding a button doesn't need a 19-component pipeline. STRUT is for changes where getting it wrong costs more than getting it slow.</p>
+    </div>
+    <div class="anti-card">
+      <h3>Not magic</h3>
+      <p>The pipeline surfaces problems. It doesn't fix your architecture. You still need to make judgment calls at every gate. That's the point.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- Modifiers -->
+<div class="mod-section" id="modifiers">
+  <div class="section-label">Classification</div>
+  <h2>Ceremony scales to risk</h2>
+  <p>Every change is classified by scan evidence into two independent binary modifiers. The pipeline adds components only when the risk warrants them.</p>
+
+  <div class="mod-grid">
+    <div class="mod-card mod-trust">
+      <h3>trust</h3>
+      <div class="mod-state">ON when auth, RLS, schema, encryption, or data immutability detected</div>
+      <p>Adds MUST NEVER constraints, negative criteria, security review by Opus, mandatory knowledge capture, and describe-flow traceability.</p>
+    </div>
+    <div class="mod-card mod-decompose">
+      <h3>decompose</h3>
+      <div class="mod-state">ON when change crosses 2+ architectural boundaries</div>
+      <p>Adds task breakdown (up to 5), per-task TDD loop, and a human gate after task 1 to verify the approach before remaining tasks proceed.</p>
+    </div>
+  </div>
+  <p style="margin-top: 24px; font-size: 14px;">
+    Four combinations: standard (both OFF), trust-only, decompose-only, guarded-decompose (both ON, which adds adversarial spec review).
+  </p>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- Research -->
+<div class="research-section" id="research">
+  <div class="section-label">Evidence base</div>
+  <h2>Research-grounded, not vibes-grounded</h2>
+  <p>Every architectural decision maps to tiered citations. The full rationale is in <code style="font-family:'DM Mono',monospace;font-size:14px">architectural-decisions.md</code> and <code style="font-family:'DM Mono',monospace;font-size:14px">research-index.md</code> in the repo.</p>
+
+  <div class="research-legend">
+    <div class="research-legend-item"><span class="research-tier t-r" style="font-size:11px;padding:2px 8px">R</span> Peer-reviewed or methodologically transparent research</div>
+    <div class="research-legend-item"><span class="research-tier t-i" style="font-size:11px;padding:2px 8px">I</span> Industry reports (stated findings, less transparent methodology)</div>
+    <div class="research-legend-item"><span class="research-tier t-d" style="font-size:11px;padding:2px 8px">D</span> Our design judgment, stated explicitly</div>
+  </div>
+
+  <div class="research-list">
+
+    <div class="research-subhead">The speed paradox</div>
+
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>METR RCT (2025)</strong> Randomized controlled trial. 16 experienced developers, 246 real tasks. Developers believed AI made them 24% faster but were actually 19% slower. Root cause: prompting AI before clarifying intent.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>Faros AI (2025)</strong> Company-wide metrics. Individual developers completed 21% more tasks and merged 98% more PRs, but review time increased 91%. Net organizational improvement: 0%.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>Bain &amp; Company (2025)</strong> Coding is 25-35% of idea-to-launch. Speeding up code generation does little if specification and review remain bottlenecked.</span>
+    </div>
+
+    <div class="research-subhead">Instruction following degrades at scale</div>
+
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>Curse of Instructions (Harada et al., ICLR 2025)</strong> Compliance degrades exponentially: success_all&nbsp;=&nbsp;success_individual<sup>N</sup>. Grounds STRUT's criteria caps and context budgets.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>AGENTIF (Qi et al., NeurIPS 2025)</strong> 707 instructions from 50 real-world agentic applications. Both constraint count and instruction length independently degrade compliance. Tool and condition constraints are the hardest types.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>RECAST (ICLR 2026)</strong> Confirms the degradation pattern across models and constraint complexity levels, including the most recent generation.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>CooperBench (2025)</strong> Isolated single-task agents succeed ~50% of the time vs. 25% when two agents collaborate. Validates STRUT's one-agent-per-task isolation.</span>
+    </div>
+
+    <div class="research-subhead">AI code quality</div>
+
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>CodeRabbit (2025)</strong> 470 PRs analyzed. AI code has 1.7&times; more issues per PR (10.83 vs 6.45), security vulnerabilities 1.5-2&times; more frequent, and senior engineers spend 3.6&times; longer reviewing it.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>GitClear (2024)</strong> 211M lines of code analyzed. 8&times; increase in duplicated code blocks 2020-2024. Copy-paste surpassed refactoring for the first time.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>MSR (2026)</strong> ~110,000 open-source PRs. Agent-generated code shows measurably more churn than human-authored code.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>Carnegie Mellon Cursor study (2025)</strong> 807 repositories. Code complexity increased 40% after AI tool adoption.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>Apiiro (2025)</strong> 322% more privilege escalation paths in AI-generated code vs. human-written. Why STRUT's trust modifier exists.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>Veracode (2025)</strong> 45% of AI-generated code introduces OWASP Top 10 vulnerabilities.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>Ox Security (2025)</strong> AI code is "highly functional but systematically lacking in architectural judgment."</span>
+    </div>
+
+    <div class="research-subhead">Review is the bottleneck</div>
+
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>Cognition/Devin (2026)</strong> PR volume now exceeds review capacity, leading to rubber-stamp approvals. Why STRUT pre-filters with automated review before human gates.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>ACM Queue (2025)</strong> The developer role is shifting from writer to navigator/reviewer. Review is the work, not overhead.</span>
+    </div>
+
+    <div class="research-subhead">TDD is more critical with AI</div>
+
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>DORA Report (2025)</strong> TDD is "more critical than ever" with AI-assisted development. AI amplifies existing practices, good or bad.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>Sol-Ver (Lin et al., 2025)</strong> Self-play between test generator and code generator yields 19.63% improvement. The verifier drives quality in the solver.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>AlphaCode (Li et al., Science 2022)</strong> Generate-and-filter paradigm. One million candidate programs per problem, 99% filtered through test execution. Tests are the selection mechanism.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>AlphaEvolve (Novikov et al., 2025)</strong> Continuous evolutionary optimization of codebases with automated test suites as the fitness function.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-r">R</span>
+      <span class="research-text"><strong>UTBoost (ACL 2025)</strong> 40.9% of SWE-bench tasks were affected by test quality issues. Test quality is load-bearing for AI code evaluation.</span>
+    </div>
+
+    <div class="research-subhead">Specification quality</div>
+
+    <div class="research-item">
+      <span class="research-tier t-i">I</span>
+      <span class="research-text"><strong>GitHub Agent Config Analysis (2026)</strong> Teams covering fewer than 4 specification areas saw AI output quality drop below human baseline.</span>
+    </div>
+    <div class="research-item">
+      <span class="research-tier t-d">D</span>
+      <span class="research-text"><strong>Own design judgment</strong> Where external evidence doesn't exist, we say so. Every [D]-tier decision in the architecture doc is owned as a judgment call, not dressed up as research.</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- Roadmap -->
+<div class="roadmap-section" id="roadmap">
+  <div class="section-label">Roadmap</div>
+  <h2>Built for Claude Code today, designed to be AI-agnostic tomorrow</h2>
+  <p>
+    Every architectural decision in STRUT is tagged with its platform coupling. The patterns (spec-first, file contracts, modifier-based risk routing, TDD enforcement) are grounded in LLM research that applies to any model. The current implementation uses Claude Code's skill/agent system. That's a starting point, not a ceiling.
+  </p>
+
+  <div class="roadmap-track">
+
+    <div class="roadmap-phase">
+      <div class="roadmap-marker">
+        <div class="roadmap-dot"></div>
+        <div class="roadmap-label">Done</div>
+      </div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Phase 0: Foundation</div>
+        <div class="roadmap-desc">Read Truth pipeline built and tested. Classification system with two-modifier architecture. Universal constraints model. Full design documentation with research citations.</div>
+        <div class="roadmap-items">
+          <span class="roadmap-tag tag-done">run-read-truth</span>
+          <span class="roadmap-tag tag-done">truth-classify</span>
+          <span class="roadmap-tag tag-done">truth-repo-impact-scan</span>
+          <span class="roadmap-tag tag-done">git-tool</span>
+          <span class="roadmap-tag tag-done">universal-constraints</span>
+          <span class="roadmap-tag tag-done">dual-model test runner</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="roadmap-phase">
+      <div class="roadmap-marker">
+        <div class="roadmap-dot"></div>
+        <div class="roadmap-label">Done</div>
+      </div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Phase 1: Spec refinement pipeline</div>
+        <div class="roadmap-desc">The spec cycle: derive intent from scan evidence, write a structured spec, review it for quality and testability, loop until it passes or hits the iteration cap.</div>
+        <div class="roadmap-items">
+          <span class="roadmap-tag tag-done">spec-derive-intent</span>
+          <span class="roadmap-tag tag-done">spec-write</span>
+          <span class="roadmap-tag tag-done">spec-review</span>
+          <span class="roadmap-tag tag-done">run-spec-refinement</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="roadmap-phase">
+      <div class="roadmap-marker">
+        <div class="roadmap-dot"></div>
+        <div class="roadmap-label">Done</div>
+      </div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Phases 2-5: Full delivery loop</div>
+        <div class="roadmap-desc">Implementation core (TDD cycle), review chain, build verification, knowledge capture. End-to-end pipeline from change description to merged PR with traceable decisions.</div>
+        <div class="roadmap-items">
+          <span class="roadmap-tag tag-done">impl-write-tests</span>
+          <span class="roadmap-tag tag-done">impl-write-code</span>
+          <span class="roadmap-tag tag-done">run-review-chain</span>
+          <span class="roadmap-tag tag-done">run-build-check</span>
+          <span class="roadmap-tag tag-done">update-capture</span>
+          <span class="roadmap-tag tag-done">run-strut (entry point)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="roadmap-phase">
+      <div class="roadmap-marker">
+        <div class="roadmap-dot dot-future"></div>
+        <div class="roadmap-label label-future">Future</div>
+      </div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">AI-agnostic abstraction layer</div>
+        <div class="roadmap-desc">Replace Claude Code-specific orchestrators with a generic workflow engine that reads the same registry files and dispatches to different LLM providers. Agent bodies (markdown task instructions) are already portable. The orchestration glue is the only Claude-specific layer.</div>
+        <div class="roadmap-items">
+          <span class="roadmap-tag">multi-provider dispatch</span>
+          <span class="roadmap-tag">generic workflow engine</span>
+          <span class="roadmap-tag">model-agnostic frontmatter</span>
+          <span class="roadmap-tag">team scaling protocol</span>
+          <span class="roadmap-tag">evolution engine</span>
+          <span class="roadmap-tag">test wisdom directory</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section-divider"></div>
+<div class="code-section">
+  <div class="section-label">Get started</div>
+  <h2>Three commands, your existing codebase</h2>
+  <p>STRUT integrates into any project with a working build/test pipeline. Claude handles the mechanical setup; you provide the domain knowledge.</p>
+
+  <div class="code-block">
+    <span class="code-comment"># Clone into your project</span><br>
+    <span class="code-cmd">git clone</span> <span class="code-str">https://github.com/your-org/strut</span> <span class="code-str">.claude</span><br><br>
+    <span class="code-comment"># Tell Claude your stack and let it wire up the integration</span><br>
+    <span class="code-dim"># "My stack is Next.js + Supabase. Do the Section A integration steps."</span><br><br>
+    <span class="code-comment"># Run the pipeline on a change</span><br>
+    <span class="code-cmd">/run-strut</span> <span class="code-str">"Add rate limiting to the auth endpoint"</span><br><br>
+    <span class="code-comment"># Or step through it: pause after every agent, inspect the output, continue or abort</span><br>
+    <span class="code-cmd">/run-strut --step</span> <span class="code-str">"Add rate limiting to the auth endpoint"</span>
+  </div>
+  <p style="margin-top: 16px; font-size: 14px;">Step mode is useful for your first few pipeline runs. At each pause you see the completed agent, its output file, and what runs next. Type <code style="font-family:'DM Mono',monospace;font-size:13px;background:var(--surface);padding:2px 8px;border-radius:4px">continue</code> or <code style="font-family:'DM Mono',monospace;font-size:13px;background:var(--surface);padding:2px 8px;border-radius:4px">abort</code> at each step. The flag is per-invocation, so omitting it on a resume returns to normal flow.</p>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-left">STRUT · open source · MIT</div>
+  <div class="footer-links">
+    <a href="https://github.com/your-org/strut">GitHub</a>
+    <a href="https://github.com/your-org/strut/tree/main/docs">Docs</a>
+    <a href="https://github.com/your-org/strut/blob/main/docs/architectural-decisions.md">Decisions</a>
+    <a href="https://github.com/your-org/strut/blob/main/docs/research-index.md">Research Index</a>
+  </div>
+</footer>
+
+</body>
+</html>
