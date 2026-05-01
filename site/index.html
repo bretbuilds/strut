@@ -578,7 +578,7 @@
     <a href="#modifiers">Modifiers</a>
     <a href="#research">Research</a>
     <a href="#roadmap">Roadmap</a>
-    <a href="https://github.com/your-org/strut" class="nav-cta">View on GitHub &rarr;</a>
+    <a href="https://github.com/bretbuilds/strut" class="nav-cta">View on GitHub &rarr;</a>
   </div>
 </nav>
 
@@ -590,7 +590,7 @@
     STRUT is a spec-first, TDD-enforced orchestration layer for Claude Code. Instead of generating apps, it processes changes through a structured Read&nbsp;Truth&nbsp;&rarr; Process&nbsp;Change&nbsp;&rarr; Update&nbsp;Truth cycle, with human gates at the points where judgment matters.
   </p>
   <div class="hero-actions">
-    <a href="https://github.com/your-org/strut" class="btn-primary">Get started</a>
+    <a href="#quickstart" class="btn-primary">Get started</a>
     <a href="#pipeline" class="btn-secondary">See the architecture</a>
   </div>
 </div>
@@ -915,6 +915,23 @@
     <div class="roadmap-phase">
       <div class="roadmap-marker">
         <div class="roadmap-dot dot-future"></div>
+        <div class="roadmap-label label-future">Next</div>
+      </div>
+      <div class="roadmap-content">
+        <div class="roadmap-title">Additional modifiers</div>
+        <div class="roadmap-desc">The two-modifier system (trust, decompose) is designed to be extensible. New modifiers can add pipeline steps for specific risk categories without touching the core path. Candidates emerge from observed friction in real pipeline runs.</div>
+        <div class="roadmap-items">
+          <span class="roadmap-tag">performance modifier</span>
+          <span class="roadmap-tag">accessibility modifier</span>
+          <span class="roadmap-tag">migration modifier</span>
+          <span class="roadmap-tag">community-contributed modifiers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="roadmap-phase">
+      <div class="roadmap-marker">
+        <div class="roadmap-dot dot-future"></div>
         <div class="roadmap-label label-future">Future</div>
       </div>
       <div class="roadmap-content">
@@ -935,14 +952,16 @@
 </div>
 
 <div class="section-divider"></div>
-<div class="code-section">
+
+<!-- Quickstart -->
+<div class="code-section" id="quickstart">
   <div class="section-label">Get started</div>
   <h2>Three commands, your existing codebase</h2>
   <p>STRUT integrates into any project with a working build/test pipeline. Claude handles the mechanical setup; you provide the domain knowledge.</p>
 
   <div class="code-block">
     <span class="code-comment"># Clone into your project</span><br>
-    <span class="code-cmd">git clone</span> <span class="code-str">https://github.com/your-org/strut</span> <span class="code-str">.claude</span><br><br>
+    <span class="code-cmd">git clone</span> <span class="code-str">https://github.com/bretbuilds/strut</span> <span class="code-str">.claude</span><br><br>
     <span class="code-comment"># Tell Claude your stack and let it wire up the integration</span><br>
     <span class="code-dim"># "My stack is Next.js + Supabase. Do the Section A integration steps."</span><br><br>
     <span class="code-comment"># Run the pipeline on a change</span><br>
@@ -955,12 +974,11 @@
 
 <!-- Footer -->
 <footer>
-  <div class="footer-left">STRUT · open source · MIT</div>
+  <div class="footer-left">STRUT · open source · <a href="https://github.com/bretbuilds/strut/blob/main/LICENSE" style="color:var(--fg-muted);text-decoration:none;">MIT</a></div>
   <div class="footer-links">
-    <a href="https://github.com/your-org/strut">GitHub</a>
-    <a href="https://github.com/your-org/strut/tree/main/docs">Docs</a>
-    <a href="https://github.com/your-org/strut/blob/main/docs/architectural-decisions.md">Decisions</a>
-    <a href="https://github.com/your-org/strut/blob/main/docs/research-index.md">Research Index</a>
+    <a href="https://github.com/bretbuilds/strut">GitHub</a>
+    <a href="https://github.com/bretbuilds/strut/tree/main/docs">Docs</a>
+    <a href="https://github.com/bretbuilds/strut/blob/main/docs/strut-architecture/architectural-decisions.md">Architecture</a>
   </div>
 </footer>
 
