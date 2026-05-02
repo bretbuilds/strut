@@ -30,7 +30,7 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 
 **What STRUT provides:**
 
-- A pipeline of orchestrator skills and worker agents under `.claude/`
+- A pipeline of orchestrator skills and worker agents (installed to `.claude/` via plugin)
 - A classification system (trust / decompose modifiers) that scales ceremony to risk
 - Rules files that govern both session-level Claude behavior and pipeline execution
 - A file contract system in `.strut-pipeline/` that lets agents communicate without contaminating each other's context
@@ -172,7 +172,7 @@ Claude Code auto-loads all markdown files in `.claude/rules/` at session start. 
 
 Two mechanisms reduce this load:
 
-**Frontmatter scoping.** Rules files can include a `globs:` frontmatter block listing path patterns. The file then loads only when Claude is working with matching files. `strut-database.md` ships configured for this (commented out until you set your paths). `strut-pipeline.md` is already scoped to `.claude/skills/**`, `.claude/agents/**`, and `scripts/**`.
+**Frontmatter scoping.** Rules files can include a `globs:` frontmatter block listing path patterns. The file then loads only when Claude is working with matching files. `strut-database.md` ships configured for this. `strut-pipeline.md` is already scoped to `.claude/skills/**`, `.claude/agents/**`, and `scripts/**`.
 
 **Important:** use `globs:` (not the documented `paths:` syntax). The `paths:` field has known YAML parsing issues in Claude Code; it silently fails to match. Verify your scoping actually works by running `/context` in a session and checking which rules files appear in "Memory files."
 
@@ -180,7 +180,7 @@ Two mechanisms reduce this load:
 
 | File | Load scope | Purpose |
 |------|-----------|---------|
-| `CLAUDE.md` | Every session | Project identity, build commands, modifier table |
+| `CLAUDE.md` | Every session | Project identity, STRUT pipeline pointer |
 | `strut-architecture.md` | Global | Directory structure, naming, design principles |
 | `strut-methodology.md` | Pipeline runs only | Anti-rationalization rules for session Claude during pipeline execution |
 | `strut-operating-rules.md` | Global | Build/test/CI requirements, scope discipline, error recovery |
@@ -200,7 +200,7 @@ Three findings establish this:
 
 **What this means for your project:** Every rules file STRUT adds increases the total instruction length Claude processes each session. If your project already has rules files, the combined set competes for Claude's attention. STRUT is designed to minimize its footprint — pipeline-internal behavior is enforced by skills and agents (which run in isolated context), not by session-level rules. Only constraints that session Claude can uniquely violate remain as rules.
 
-**If you notice degraded performance:** Run a count of total constraints across your `CLAUDE.md` and `.claude/rules/` files. Consider consolidating overlapping rules, removing rules that restate what your architecture already enforces, and using `globs:` scoping to limit which rules load in which contexts.
+**If you notice degraded performance:** Run `/strut:doctor` to check your constraint count. Consider consolidating overlapping rules, removing rules that restate what your architecture already enforces, and using `globs:` scoping to limit which rules load in which contexts.
 
 For the full constraint model and research citations, see `docs/strut-architecture/universal-constraints.md`.
 
@@ -208,9 +208,9 @@ For the full constraint model and research citations, see `docs/strut-architectu
 
 ## Adapting the SQL + multi-tenant + RLS baseline
 
-Two files assume this common backend shape: `strut-database.md` and `strut-security.md` (RLS section).
+Two files assume this common backend shape: `strut-database.md` and `strut-security.md` (RLS section). `/strut:init` detects your data layer and flags these for review if your stack doesn't match.
 
-**If your stack matches the baseline:** use the files as-is, just scope `strut-database.md` (Section A) and populate `strut-security.md`'s MUST NEVER section (Section B).
+**If your stack matches the baseline:** use the files as-is and populate `strut-security.md`'s MUST NEVER section.
 
 **If your stack differs:**
 - Replace `strut-database.md` with rules appropriate to your data layer (NoSQL access patterns, single-tenant query conventions, etc.)
@@ -224,7 +224,7 @@ Two files assume this common backend shape: `strut-database.md` and `strut-secur
 
 **Frontmatter scoping silently not working.** Both bugs are documented: `paths:` syntax fails to parse, and occasionally scoped rules load globally anyway. Always verify with `/context` after setting up scoping. If a scoped file doesn't appear when expected, try the `globs:` syntax and restart the session.
 
-**Assuming the template's directory conventions match yours.** `strut-architecture.md` rule 2 references `app/lib/` and `app/components/`. If your project uses `src/` or `packages/` or a different structure, update the rule, otherwise Claude will try to put files in directories that don't exist.
+**Assuming the template's directory conventions match yours.** `strut-architecture.md` rule 2 references `app/lib/` and `app/components/`. `/strut:init` detects your actual structure, but if it guessed wrong, update the rule — otherwise Claude will try to put files in directories that don't exist.
 
 **Skipping `docs/user-context/` setup and wondering why specs are thin.** `spec-derive-intent` works without it, but specs derived from scan evidence alone tend to miss product context. If specs keep failing review for "missing criteria" or "unclear intent," populating `docs/user-context/` is usually the fix.
 
