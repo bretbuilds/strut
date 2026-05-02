@@ -46,7 +46,7 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 ## Prerequisites
 
 - Claude Code installed (v2.0.64 or later)
-- Project under version control with a clean branching workflow
+- Project under version control. The pipeline requires at least one commit on the main branch and a clean working tree before invoking `/run-strut` — `git-tool` refuses to create a feature branch from a dirty tree, including untracked files like `.DS_Store`
 - A working build/lint/test pipeline in your project. STRUT orchestrates these, it doesn't provide them
 
 ---
@@ -55,8 +55,11 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 
 ### Install
 
+Add the marketplace, then install the plugin:
+
 ```
-claude plugin add github:bretbuilds/strut
+claude plugin marketplace add bretbuilds/strut
+claude plugin install strut
 ```
 
 ### Initialize your project

@@ -960,8 +960,9 @@
   <p>STRUT installs as a Claude Code plugin. It analyzes your project, sets up the pipeline files alongside your existing config, and you're running.</p>
 
   <div class="code-block">
-    <span class="code-comment"># Install the plugin</span><br>
-    <span class="code-cmd">claude plugin add</span> <span class="code-str">github:bretbuilds/strut</span><br><br>
+    <span class="code-comment"># Add the marketplace, then install the plugin</span><br>
+    <span class="code-cmd">claude plugin marketplace add</span> <span class="code-str">bretbuilds/strut</span><br>
+    <span class="code-cmd">claude plugin install</span> <span class="code-str">strut</span><br><br>
     <span class="code-comment"># Initialize — analyzes your project and sets up pipeline files</span><br>
     <span class="code-cmd">/strut:init</span><br><br>
     <span class="code-comment"># Run the pipeline on a change</span><br>
