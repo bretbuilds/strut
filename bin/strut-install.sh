@@ -15,6 +15,46 @@ MANIFEST="${TARGET_DIR}/strut-manifest.json"
 
 echo "STRUT installer: target=${TARGET_DIR}"
 
+# --- Step 0: Verify git preconditions ---
+# STRUT's pipeline creates feature branches via git-tool, which requires a
+# clean working tree and at least one commit on the current branch. Catching
+# the failure here gives clearer guidance than letting /run-strut fail later.
+# Use `git rev-parse --git-dir` (not `[ -d .git ]`) so worktrees and
+# submodules — where .git is a file pointing at the gitdir — are accepted.
+if ! git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "" >&2
+  echo "✘ STRUT init aborted: ${TARGET_DIR} is not a git repository (or not inside one)." >&2
+  echo "  Run 'git init', stage your files, and commit before invoking /strut:init." >&2
+  exit 1
+fi
+
+if ! git -C "$TARGET_DIR" rev-parse HEAD >/dev/null 2>&1; then
+  echo "" >&2
+  echo "✘ STRUT init aborted: no commits on the current branch." >&2
+  echo "  STRUT's pipeline branches off the current commit. With zero commits, branch creation will fail." >&2
+  echo "  Fix: 'git add .' then 'git commit -m \"initial commit\"' before re-running /strut:init." >&2
+  exit 1
+fi
+
+DIRTY="$(git -C "$TARGET_DIR" status --porcelain)"
+if [ -n "$DIRTY" ]; then
+  echo "" >&2
+  echo "✘ STRUT init aborted: working tree is not clean." >&2
+  echo "" >&2
+  git -C "$TARGET_DIR" status --short >&2
+  echo "" >&2
+  echo "  STRUT requires a clean tree so /run-strut can create feature branches without" >&2
+  echo "  pulling unrelated changes into the work. Commit, stash, or discard the above," >&2
+  echo "  then re-invoke /strut:init." >&2
+  exit 1
+fi
+
+CURRENT_BRANCH="$(git -C "$TARGET_DIR" branch --show-current)"
+if [ -z "$CURRENT_BRANCH" ]; then
+  CURRENT_BRANCH="(detached at $(git -C "$TARGET_DIR" rev-parse --short HEAD))"
+fi
+echo "  [✓] git preconditions OK (clean tree, $(git -C "$TARGET_DIR" rev-list --count HEAD) commit(s) on ${CURRENT_BRANCH})"
+
 # --- Step 1: Create directories ---
 mkdir -p "${CLAUDE_DIR}/skills"
 mkdir -p "${CLAUDE_DIR}/agents"
@@ -155,13 +195,12 @@ ensure_section "# OS metadata"                  ".DS_Store" "Thumbs.db"
 # A repo with .DS_Store committed before init defeats the new ignore line —
 # git only ignores untracked files. Untrack every .DS_Store path now so the
 # next commit removes them from the tree.
-if [ -d "${TARGET_DIR}/.git" ]; then
-  TRACKED_DS=$(git -C "$TARGET_DIR" ls-files | grep -E '(^|/)\.DS_Store$' || true)
-  if [ -n "$TRACKED_DS" ]; then
-    DS_COUNT=$(printf '%s\n' "$TRACKED_DS" | wc -l | tr -d ' ')
-    printf '%s\n' "$TRACKED_DS" | xargs -I {} git -C "$TARGET_DIR" rm --cached --quiet "{}"
-    echo "  [✓] Untracked ${DS_COUNT} .DS_Store file(s) — commit to finalize"
-  fi
+# Step 0's preflight already verified this is a git repo, so no need to re-check.
+TRACKED_DS=$(git -C "$TARGET_DIR" ls-files | grep -E '(^|/)\.DS_Store$' || true)
+if [ -n "$TRACKED_DS" ]; then
+  DS_COUNT=$(printf '%s\n' "$TRACKED_DS" | wc -l | tr -d ' ')
+  printf '%s\n' "$TRACKED_DS" | xargs -I {} git -C "$TARGET_DIR" rm --cached --quiet "{}"
+  echo "  [✓] Untracked ${DS_COUNT} .DS_Store file(s) — commit to finalize"
 fi
 
 echo ""

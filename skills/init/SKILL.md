@@ -20,9 +20,15 @@ Initialize the STRUT development pipeline in this project.
 "${CLAUDE_PLUGIN_ROOT}/bin/strut-install.sh"
 ```
 
-Run this script. It copies skills, agents, rules, and scripts to `.claude/`, merges permissions into settings.json, appends the STRUT block to CLAUDE.md, and writes strut-manifest.json.
+Run this script. It first verifies git preconditions (the project is a git repo, has at least one commit on the current branch, and the working tree is clean), then copies skills, agents, rules, and scripts to `.claude/`, merges permissions into settings.json, appends the STRUT block to CLAUDE.md, and writes strut-manifest.json.
 
-If the script fails, report the error and stop.
+If the script fails, report the error and stop. Common preflight failures and how to relay them:
+
+- **Not a git repo** — tell the user to `git init`, stage files, and make an initial commit before re-running `/strut:init`.
+- **Zero commits** — tell the user to `git add .` and `git commit -m "initial commit"` before re-running.
+- **Dirty tree** — show them the `git status` output the script printed, and ask whether they want to commit, stash, or discard before re-running.
+
+Do not attempt to fix the precondition silently on the user's behalf (don't auto-commit, don't auto-stash). The user should decide what to do with their working tree.
 
 ### Step 2: Analyze the project and fill placeholders
 
