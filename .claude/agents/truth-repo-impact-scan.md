@@ -29,7 +29,7 @@ Do not classify. Do not draft specs. Report what the change touches.
 
 ### Result File
 
-`.pipeline/truth-repo-impact-scan-result.json`
+`.strut-pipeline/truth-repo-impact-scan-result.json`
 
 ### Result Schema
 
@@ -39,7 +39,7 @@ Do not classify. Do not draft specs. Report what the change touches.
   "status": "passed",
   "summary": "One sentence: what the change touches.",
   "what": "The exact change request",
-  "output_file": ".pipeline/impact-scan.md",
+  "output_file": ".strut-pipeline/impact-scan.md",
   "files_to_modify": [
     { "path": "app/actions/updateActions.ts", "reason": "...", "layer": "server", "is_new_file": false }
   ],
@@ -94,7 +94,7 @@ Derive these classifications from the project's actual directory structure and f
 
 ### Content Files
 
-`.pipeline/impact-scan.md` — Human-readable evidence map (15–30 lines). Consumed by spec-write and impl-describe-flow. Structure:
+`.strut-pipeline/impact-scan.md` — Human-readable evidence map (15–30 lines). Consumed by spec-write and impl-describe-flow. Structure:
 
 ```markdown
 # Impact scan: [WHAT from input]
@@ -120,7 +120,7 @@ Derive these classifications from the project's actual directory structure and f
 
 ## Algorithm
 
-1. `rm -f .pipeline/impact-scan.md .pipeline/truth-repo-impact-scan-result.json`
+1. `rm -f .strut-pipeline/impact-scan.md .strut-pipeline/truth-repo-impact-scan-result.json`
 2. Read all files in `.claude/rules/` to load trust-sensitive definitions for this project.
 3. Parse `$ARGUMENTS`. Return `blocked` ONLY if `$ARGUMENTS` is literally empty or whitespace-only. If it contains any non-whitespace text, proceed with the scan regardless of how vague or underspecified the text is — surface ambiguity via `issues[]`, not by blocking.
 4. Derive 3–8 search terms. Use Grep and Glob to locate candidate files. Read each to confirm relevance. Every path must be verified — no guessed paths.
@@ -131,8 +131,8 @@ Derive these classifications from the project's actual directory structure and f
 9. Set each `risk_signals` boolean based on evidence from Steps 4–6.
 10. Set `complexity_signals` from Step 7 results. Count distinct layers for `boundary_crossings`.
 11. For each `risk_signals` boolean that is `true`, check whether `.claude/rules/` contains a rule referencing the specific system that triggered it. If a risk signal fired from codebase evidence (e.g., a migration file exists) but no rule mentions that specific system (e.g., no rule says "RLS enforced on [table]"), add an entry to `rules_gaps` describing the gap.
-12. Write `.pipeline/impact-scan.md` (15–30 lines).
-13. Write `.pipeline/truth-repo-impact-scan-result.json`. Stop.
+12. Write `.strut-pipeline/impact-scan.md` (15–30 lines).
+13. Write `.strut-pipeline/truth-repo-impact-scan-result.json`. Stop.
 
 ### Special case: empty codebase
 
@@ -144,14 +144,14 @@ Write `passed` with empty arrays, all signals false, `boundary_crossings` 0. Not
 - Thinking "I can guess this file path"? Stop. Open it or omit it.
 - Thinking about adding implementation suggestions? Stop. Report what exists.
 - Thinking "these files share a parent directory, so they're the same layer"? Stop. Classify by function, not by path prefix. A server action and a UI component are different layers even if they share a parent directory.
-- Thinking "I should classify this change or write classification.json"? Stop. Classification is truth-classify's job. Write only `truth-repo-impact-scan-result.json` and `impact-scan.md`. Writing any other file to `.pipeline/` is a boundary violation.
+- Thinking "I should classify this change or write classification.json"? Stop. Classification is truth-classify's job. Write only `truth-repo-impact-scan-result.json` and `impact-scan.md`. Writing any other file to `.strut-pipeline/` is a boundary violation.
 
 ## Boundary Constraints
 
 - Do not dispatch other agents.
 - Do not modify source files. Read-only scan.
 - Do not classify. Do not draft specs. Do not suggest implementation approaches.
-- Write exactly two files: `.pipeline/truth-repo-impact-scan-result.json` and `.pipeline/impact-scan.md`. No other files.
+- Write exactly two files: `.strut-pipeline/truth-repo-impact-scan-result.json` and `.strut-pipeline/impact-scan.md`. No other files.
 - Do not pause for human input. Scan, write, exit.
 
 ## Explore Ban

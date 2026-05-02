@@ -1,7 +1,7 @@
 # Spec Template
 
 <!-- This is the human-review rendering of a spec. The authoritative format is JSON,
-     written by spec-write to .pipeline/spec-refinement/spec.json per the schema in
+     written by spec-write to .strut-pipeline/spec-refinement/spec.json per the schema in
      docs/strut-architecture/pre-build-decisions.md. The fields below map directly to JSON fields;
      annotations show which section corresponds to which field. -->
 

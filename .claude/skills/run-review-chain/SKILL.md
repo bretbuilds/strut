@@ -7,7 +7,7 @@ description: Sub-orchestrator for the review sequence. Dispatches review-scope a
 
 Process Change phase, Review Chain. Dispatched by run-implementation.
 
-Dispatch review-scope first. If it passes, dispatch review-criteria-eval. If trust is ON and review-criteria-eval passes, dispatch review-security. Aggregate the outcome into `.pipeline/implementation/task-1/review-chain-result.json` and return to run-implementation. The parent orchestrator owns the retry budget; this skill has none of its own. Do not evaluate scope, criteria, or security directly.
+Dispatch review-scope first. If it passes, dispatch review-criteria-eval. If trust is ON and review-criteria-eval passes, dispatch review-security. Aggregate the outcome into `.strut-pipeline/implementation/task-1/review-chain-result.json` and return to run-implementation. The parent orchestrator owns the retry budget; this skill has none of its own. Do not evaluate scope, criteria, or security directly.
 
 ## Dispatches
 
@@ -19,10 +19,10 @@ Dispatch review-scope first. If it passes, dispatch review-criteria-eval. If tru
 
 ### Files Read (for status routing and aggregation only)
 
-- `.pipeline/classification.json` — read `modifiers.trust` to determine whether review-security is dispatched.
-- `.pipeline/implementation/task-1/review-scope.json` — status check after review-scope; on failure, issues array is copied into `review-chain-result.json`.
-- `.pipeline/implementation/task-1/review-criteria-eval.json` — status check after review-criteria-eval; on failure, issues array and per_criterion verdicts are copied into `review-chain-result.json`.
-- `.pipeline/implementation/task-1/review-security.json` — status check after review-security (trust ON only); on failure, issues array is copied into `review-chain-result.json`.
+- `.strut-pipeline/classification.json` — read `modifiers.trust` to determine whether review-security is dispatched.
+- `.strut-pipeline/implementation/task-1/review-scope.json` — status check after review-scope; on failure, issues array is copied into `review-chain-result.json`.
+- `.strut-pipeline/implementation/task-1/review-criteria-eval.json` — status check after review-criteria-eval; on failure, issues array and per_criterion verdicts are copied into `review-chain-result.json`.
+- `.strut-pipeline/implementation/task-1/review-security.json` — status check after review-security (trust ON only); on failure, issues array is copied into `review-chain-result.json`.
 
 For decompose ON, the `task-1` segment is replaced by the active task id passed from run-implementation.
 
@@ -34,10 +34,10 @@ For decompose ON, the `task-1` segment is replaced by the active task id passed 
 
 These must exist before this skill runs (produced by run-implementation's earlier steps):
 
-- `.pipeline/spec-refinement/spec.json`
-- `.pipeline/classification.json`
-- `.pipeline/implementation/<task_id>/tests-result.json` with `status: "passed"`
-- `.pipeline/implementation/<task_id>/impl-write-code-result.json` with `status: "passed"`
+- `.strut-pipeline/spec-refinement/spec.json`
+- `.strut-pipeline/classification.json`
+- `.strut-pipeline/implementation/<task_id>/tests-result.json` with `status: "passed"`
+- `.strut-pipeline/implementation/<task_id>/impl-write-code-result.json` with `status: "passed"`
 
 If any prerequisite is missing, say: `Missing implementation prerequisite: [name]. run-implementation should dispatch impl-write-tests and impl-write-code first.` Stop.
 
@@ -45,7 +45,7 @@ If any prerequisite is missing, say: `Missing implementation prerequisite: [name
 
 ### Result File
 
-- `.pipeline/implementation/task-1/review-chain-result.json`
+- `.strut-pipeline/implementation/task-1/review-chain-result.json`
 
 Written directly. Aggregated from reviewer outputs.
 
@@ -105,7 +105,7 @@ Failed:
       "path": "app/actions/get-items.ts",
       "lines": "14-22",
       "issue": "Query joins through org_members without tenant scoping on org_members itself.",
-      "rule_violated": "security.md rule 2"
+      "rule_violated": "strut-security.md rule 2"
     }
   ],
   "summary": "Review chain failed at review-security. 1 security issue(s)."
@@ -132,20 +132,20 @@ On success or failure, run-implementation reads `review-chain-result.json` and r
 Parse `$ARGUMENTS`. The first token (if present) is the task id; otherwise task id is `task-1`.
 
 ```bash
-mkdir -p .pipeline/implementation/<task_id>
-rm -f .pipeline/implementation/<task_id>/review-scope.json
-rm -f .pipeline/implementation/<task_id>/review-criteria-eval.json
-rm -f .pipeline/implementation/<task_id>/review-security.json
-rm -f .pipeline/implementation/<task_id>/review-chain-result.json
+mkdir -p .strut-pipeline/implementation/<task_id>
+rm -f .strut-pipeline/implementation/<task_id>/review-scope.json
+rm -f .strut-pipeline/implementation/<task_id>/review-criteria-eval.json
+rm -f .strut-pipeline/implementation/<task_id>/review-security.json
+rm -f .strut-pipeline/implementation/<task_id>/review-chain-result.json
 ```
 
 Stale reviewer files must be removed — every dispatch starts from review-scope. The revised implementation may have introduced new issues at any stage.
 
 ### Step 2: Read classification and verify prerequisites
 
-Read `.pipeline/classification.json`. Extract `modifiers.trust` → `trust_on` (boolean).
+Read `.strut-pipeline/classification.json`. Extract `modifiers.trust` → `trust_on` (boolean).
 
-Check that `.pipeline/spec-refinement/spec.json`, `.pipeline/implementation/<task_id>/tests-result.json`, and `.pipeline/implementation/<task_id>/impl-write-code-result.json` all exist. If any is missing, overwrite `review-chain-result.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a `summary` naming which prerequisite file is missing. Stop.
+Check that `.strut-pipeline/spec-refinement/spec.json`, `.strut-pipeline/implementation/<task_id>/tests-result.json`, and `.strut-pipeline/implementation/<task_id>/impl-write-code-result.json` all exist. If any is missing, overwrite `review-chain-result.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a `summary` naming which prerequisite file is missing. Stop.
 
 Do not check upstream statuses here — the reviewers validate their own inputs per their contracts.
 
@@ -153,11 +153,11 @@ Do not check upstream statuses here — the reviewers validate their own inputs 
 
 Dispatch the review-scope agent via the Agent tool with `subagent_type: "review-scope"`. The prompt instructs it to evaluate the current diff against the spec, for the active task id.
 
-When the agent completes, check: does `.pipeline/implementation/<task_id>/review-scope.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<task_id>/review-scope.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`:
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: review-scope — passed (task <task_id>). Output: .pipeline/implementation/<task_id>/review-scope.json. Next: review-criteria-eval.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: review-scope — passed (task <task_id>). Output: .strut-pipeline/implementation/<task_id>/review-scope.json. Next: review-criteria-eval.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 4.
   - If `"failed"`: go to Step 7 (aggregate failure, stop).
 - **No:** Go to Step 7 with a synthetic failure (reviewers_run=["review-scope"], failed_at="review-scope", summary names the missing output).
@@ -166,11 +166,11 @@ When the agent completes, check: does `.pipeline/implementation/<task_id>/review
 
 Dispatch the review-criteria-eval agent via the Agent tool with `subagent_type: "review-criteria-eval"`. The prompt instructs it to evaluate criteria satisfaction for the active task id.
 
-When the agent completes, check: does `.pipeline/implementation/<task_id>/review-criteria-eval.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<task_id>/review-criteria-eval.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`:
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: review-criteria-eval — passed (task <task_id>). Output: .pipeline/implementation/<task_id>/review-criteria-eval.json. Next: [review-security if trust ON, otherwise write passed result].` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: review-criteria-eval — passed (task <task_id>). Output: .strut-pipeline/implementation/<task_id>/review-criteria-eval.json. Next: [review-security if trust ON, otherwise write passed result].` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     If `trust_on` is true: continue to Step 5. If `trust_on` is false: continue to Step 6.
   - If `"failed"`: go to Step 7 (aggregate failure, stop).
 - **No:** Go to Step 7 with a synthetic failure (reviewers_run includes both, failed_at="review-criteria-eval", summary names the missing output).
@@ -181,18 +181,18 @@ This step runs only when `trust_on` is true. If `trust_on` is false, this step i
 
 Dispatch the review-security agent via the Agent tool with `subagent_type: "review-security"`. The prompt instructs it to audit the implementation diff for trust boundary violations for the active task id.
 
-When the agent completes, check: does `.pipeline/implementation/<task_id>/review-security.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<task_id>/review-security.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`:
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: review-security — passed (task <task_id>). Output: .pipeline/implementation/<task_id>/review-security.json. Next: write passed result.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: review-security — passed (task <task_id>). Output: .strut-pipeline/implementation/<task_id>/review-security.json. Next: write passed result.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 6.
   - If `"failed"`: go to Step 7 (aggregate failure, stop).
 - **No:** Go to Step 7 with a synthetic failure (reviewers_run includes all three, failed_at="review-security", summary names the missing output).
 
 ### Step 6: Overwrite placeholder with passed result
 
-Overwrite `.pipeline/implementation/<task_id>/review-chain-result.json` with:
+Overwrite `.strut-pipeline/implementation/<task_id>/review-chain-result.json` with:
 
 If `trust_on` is false:
 
@@ -234,7 +234,7 @@ Say `Review chain complete. All reviewers passed.` Return to run-implementation.
 
 Read the failed reviewer's result file (and the previously-passed reviewers', if any) to copy issues and verdicts verbatim.
 
-Overwrite `.pipeline/implementation/<task_id>/review-chain-result.json` with:
+Overwrite `.strut-pipeline/implementation/<task_id>/review-chain-result.json` with:
 
 ```json
 {

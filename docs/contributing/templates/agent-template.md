@@ -18,7 +18,7 @@
 
 ## Input Contract
 ### Files Read
-- `.pipeline/[filename]` — [what it contains, why this agent needs it]
+- `.strut-pipeline/[filename]` — [what it contains, why this agent needs it]
 - `.claude/rules/[filename]` — [which rules constrain this agent's behavior, if any]
 
 ### Other Inputs
@@ -26,7 +26,7 @@
 
 ## Output Contract
 ### Result File
-- `.pipeline/[path-to-result].json`
+- `.strut-pipeline/[path-to-result].json`
 
 ### Result Schema
 
@@ -48,7 +48,7 @@ Additional fields are agent-specific. Two common shapes:
 {
   "skill": "[agent-name]",
   "status": "passed",
-  "output_file": ".pipeline/spec-refinement/spec.json",
+  "output_file": ".strut-pipeline/spec-refinement/spec.json",
   "summary": "...",
   "issues": []
 }
@@ -75,7 +75,7 @@ Additional fields are agent-specific. Two common shapes:
 - [agent-specific values, e.g., `created` / `exists` for git-tool (branch), `committed` for git-tool (commit), `opened` for git-tool (pr)]
 
 ### Content Files (if the agent produces a separate content artifact)
-- `.pipeline/[content-filename]` — [what it contains, who consumes it]
+- `.strut-pipeline/[content-filename]` — [what it contains, who consumes it]
 
 ## Modifier Behavior
 <!-- Only include this section if the agent's behavior varies by modifier.
@@ -158,7 +158,7 @@ Some agents have multiple modes dispatched by different parents at different poi
 
 ### What makes agents actually work
 
-- **`rm -f` before writing any `.pipeline/` file** prevents reading stale state from previous runs.
+- **`rm -f` before writing any `.strut-pipeline/` file** prevents reading stale state from previous runs.
 - **Anti-rationalization blocks ("Thinking X? Stop.")** prevent more failures than polite instructions. Use direct interception, not polite phrasing. Add only when you observe the failure — each one is an expensive condition constraint.
 - **Numbered algorithm steps prevent models from substituting their own logic.** Prose descriptions get reinterpreted.
 - **Failure actions must say "stop and wait," not "ask how to proceed."** The latter produces bypass options.

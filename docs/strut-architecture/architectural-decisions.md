@@ -131,12 +131,12 @@ Platform coupling: The mechanism (session-inherited context for nested skills) i
 
 ### File contracts as inter-agent communication
 
-Agents communicate through structured JSON files in `.pipeline/`. Every result file contains at minimum `{skill, status}`. Orchestrators route on status; they never read content fields from agent outputs.
+Agents communicate through structured JSON files in `.strut-pipeline/`. Every result file contains at minimum `{skill, status}`. Orchestrators route on status; they never read content fields from agent outputs.
 
 File contracts make the orchestrator's routing logic auditable and deterministic — no LLM reasoning is involved in deciding "did this step pass?" beyond reading a string field. This also prevents orchestrator context bloat from accumulating full agent outputs.
 
 - **[A]** Anthropic Context Engineering (2025): Recommends "detailed search context remains isolated within sub-agents" as a separation-of-concerns principle.
-- **[D]** The specific format (`{skill, status}` minimum, JSON files in `.pipeline/`) is our design choice. No external source prescribes this format.
+- **[D]** The specific format (`{skill, status}` minimum, JSON files in `.strut-pipeline/`) is our design choice. No external source prescribes this format.
 
 Platform coupling: None. Any platform with a filesystem works.
 
@@ -291,7 +291,7 @@ Platform coupling: None.
 
 ### Source of truth: codebase + tests + knowledge substrate
 
-The authoritative state of the system is the working code, the test suite, and the knowledge substrate (rules, decisions log, system map). Specs are transient — consumed on merge, archived in `.specs/` for historical reference.
+The authoritative state of the system is the working code, the test suite, and the knowledge substrate (rules, decisions log, system map). Specs are transient — consumed on merge, archived in `.strut-specs/` for historical reference.
 
 An earlier design treated the spec as the source of truth, with code as its output. This inverts once the code exists: the code is what runs, the tests are what verify it, and specs are the instruction that produced this particular diff. After merge, the spec's job is done.
 

@@ -59,7 +59,7 @@ run_case() {
   return $code
 }
 
-OUT=".pipeline/build-check/build-check.json"
+OUT=".strut-pipeline/build-check/build-check.json"
 
 # ─── T1: No markers, no override → detection failure, exit 1 ────────────────
 t1() {
@@ -281,7 +281,7 @@ t12() {
 
 # ─── T13: Stale output overwritten ──────────────────────────────────────────
 t13() {
-  mkdir -p .pipeline/build-check
+  mkdir -p .strut-pipeline/build-check
   echo '{"skill":"build-check","status":"STALE_SENTINEL"}' > "$OUT"
   write_override '{"build":"true","lint":"true","typecheck":"true","test":"true"}'
   "$SCRIPT_ABS" >/dev/null

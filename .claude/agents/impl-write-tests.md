@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Implementation. Dispatched by run-implementation. impl-write-code runs after this and reads the test files as input.
 
-Produce failing tests on the feature branch — one test (or more) per criterion named in the current task — and verify that every new test fails before implementation code exists. Write `.pipeline/implementation/task-1/tests-result.json` with a natural-language `criteria_coverage` mapping that the human reads at the PR gate.
+Produce failing tests on the feature branch — one test (or more) per criterion named in the current task — and verify that every new test fails before implementation code exists. Write `.strut-pipeline/implementation/task-1/tests-result.json` with a natural-language `criteria_coverage` mapping that the human reads at the PR gate.
 
 Do not write implementation code. Do not refactor existing code. Do not modify tests outside this task's criteria. Write tests to spec and confirm they fail.
 
@@ -18,22 +18,22 @@ Do not write implementation code. Do not refactor existing code. Do not modify t
 
 ### Files to Read
 
-- `.pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
-- `.pipeline/spec-refinement/spec.json` — use `criteria[]`, `tasks[]`, and `implementation_notes`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
-- `.pipeline/implementation/git-branch-result.json` — confirm the feature branch exists before writing tests.
+- `.strut-pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
+- `.strut-pipeline/spec-refinement/spec.json` — use `criteria[]`, `tasks[]`, and `implementation_notes`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
+- `.strut-pipeline/implementation/git-branch-result.json` — confirm the feature branch exists before writing tests.
 - Existing project test files — read enough of the test scaffolding to match project conventions (framework, fixtures, helpers, naming). Do not modify tests outside the current task's scope.
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. All input comes from files. The active task id is determined by reading `.pipeline/implementation/active-task.json` — the orchestrator writes this file before each task's dispatch cycle. If the file is missing, default to `task-1` (standard path).
+None. No `$ARGUMENTS`. All input comes from files. The active task id is determined by reading `.strut-pipeline/implementation/active-task.json` — the orchestrator writes this file before each task's dispatch cycle. If the file is missing, default to `task-1` (standard path).
 
 ## Output Contract
 
 ### Result File
 
-`.pipeline/implementation/task-1/tests-result.json`
+`.strut-pipeline/implementation/task-1/tests-result.json`
 
-For decompose ON, replace the `task-1` segment with the active task id (e.g., `.pipeline/implementation/task-2/tests-result.json`).
+For decompose ON, replace the `task-1` segment with the active task id (e.g., `.strut-pipeline/implementation/task-2/tests-result.json`).
 
 ### Result Schema
 
@@ -100,8 +100,8 @@ Test files are written to the working tree on the branch. They are committed by 
 
 ## Algorithm
 
-1. Determine the active task id: read `.pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .pipeline/implementation/<active_task_id>/tests-result.json`. Create the containing directory if missing.
-2. Read `.pipeline/spec-refinement/spec.json` and `.pipeline/implementation/git-branch-result.json`. If either is missing or malformed, or if the branch was not created, write `failed` result with the reason and stop.
+1. Determine the active task id: read `.strut-pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .strut-pipeline/implementation/<active_task_id>/tests-result.json`. Create the containing directory if missing.
+2. Read `.strut-pipeline/spec-refinement/spec.json` and `.strut-pipeline/implementation/git-branch-result.json`. If either is missing or malformed, or if the branch was not created, write `failed` result with the reason and stop.
 3. Identify the active task from `spec.json.tasks[]` — the task whose `id` matches `active_task_id`. Filter `criteria[]` to entries whose `id` appears in that task's `criteria_ids`. If the task is not found or the filtered set is empty, write `failed` result and stop.
 4. Read the project's existing test scaffolding to learn the framework, naming conventions, fixture patterns, and how tests are discovered by the test command. Read only what is needed to match conventions — do not scan the whole codebase.
 5. Execute the Plan Mode Directive below. The plan guides internal reasoning — it does not need to appear in the final message.
@@ -157,7 +157,7 @@ If any assertion is missing, add it before running tests.
 
 - Do not dispatch other agents.
 - Read files declared in the Input Contract plus the project's test scaffolding. No codebase exploration beyond matching test conventions.
-- Write: new or modified test files on the branch, and `.pipeline/implementation/task-1/tests-result.json` (or active task id equivalent). No other writes.
+- Write: new or modified test files on the branch, and `.strut-pipeline/implementation/task-1/tests-result.json` (or active task id equivalent). No other writes.
 - Do not write implementation code, production source files, or non-test files outside the result file.
 - Do not modify tests unrelated to the current task's criteria.
 - Do not commit. git-tool in commit mode handles commits later.

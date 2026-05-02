@@ -19,9 +19,9 @@ Derive structured intent, produce a spec, review it for quality and testability,
 
 ### Files Read (for status routing only)
 
-- `.pipeline/spec-refinement/intent.json` — status check after derive-intent
-- `.pipeline/spec-refinement/spec.json` — status check after spec-write
-- `.pipeline/spec-refinement/spec-review.json` — status check after spec-review; on failure, this file becomes spec-write's feedback source on the next iteration
+- `.strut-pipeline/spec-refinement/intent.json` — status check after derive-intent
+- `.strut-pipeline/spec-refinement/spec.json` — status check after spec-write
+- `.strut-pipeline/spec-refinement/spec-review.json` — status check after spec-review; on failure, this file becomes spec-write's feedback source on the next iteration
 
 ### Other Inputs
 
@@ -31,9 +31,9 @@ Derive structured intent, produce a spec, review it for quality and testability,
 
 These must exist before this skill runs (produced by Read Truth):
 
-- `.pipeline/classification.json`
-- `.pipeline/impact-scan.md`
-- `.pipeline/truth-repo-impact-scan-result.json`
+- `.strut-pipeline/classification.json`
+- `.strut-pipeline/impact-scan.md`
+- `.strut-pipeline/truth-repo-impact-scan-result.json`
 
 If any prerequisite is missing, say: `Missing Read Truth output. Run Read Truth first.` Stop.
 
@@ -43,13 +43,13 @@ If any prerequisite is missing, say: `Missing Read Truth output. Run Read Truth 
 
 None. Outputs are the files the dispatched agents write:
 
-- `.pipeline/spec-refinement/intent.json` (written by spec-derive-intent)
-- `.pipeline/spec-refinement/spec.json` (written by spec-write)
-- `.pipeline/spec-refinement/spec-review.json` (written by spec-review)
+- `.strut-pipeline/spec-refinement/intent.json` (written by spec-derive-intent)
+- `.strut-pipeline/spec-refinement/spec.json` (written by spec-write)
+- `.strut-pipeline/spec-refinement/spec-review.json` (written by spec-review)
 
 ### Return to run-process-change
 
-On success: return with `.pipeline/spec-refinement/spec-review.json` containing `status: "passed"` and `.pipeline/spec-refinement/spec.json` as the approved spec.
+On success: return with `.strut-pipeline/spec-refinement/spec-review.json` containing `status: "passed"` and `.strut-pipeline/spec-refinement/spec.json` as the approved spec.
 
 On failure: report the failure reason and stop. run-process-change escalates to human.
 
@@ -58,10 +58,10 @@ On failure: report the failure reason and stop. run-process-change escalates to 
 ### Step 1: Verify prerequisites
 
 ```bash
-mkdir -p .pipeline/spec-refinement
+mkdir -p .strut-pipeline/spec-refinement
 ```
 
-Check that `.pipeline/classification.json`, `.pipeline/impact-scan.md`, and `.pipeline/truth-repo-impact-scan-result.json` all exist. If any is missing, say: `Missing Read Truth output: [name]. Run Read Truth first.` Stop.
+Check that `.strut-pipeline/classification.json`, `.strut-pipeline/impact-scan.md`, and `.strut-pipeline/truth-repo-impact-scan-result.json` all exist. If any is missing, say: `Missing Read Truth output: [name]. Run Read Truth first.` Stop.
 
 Initialize the iteration counter: `iteration = 0`.
 
@@ -69,12 +69,12 @@ Initialize the iteration counter: `iteration = 0`.
 
 Dispatch the spec-derive-intent agent via the Agent tool with `subagent_type: "spec-derive-intent"`. Pass the human's change request as the prompt.
 
-When the agent completes, check: does `.pipeline/spec-refinement/intent.json` exist?
+When the agent completes, check: does `.strut-pipeline/spec-refinement/intent.json` exist?
 
-- **Yes:** Read ONLY the `status` field. If `"passed"`, continue to Step 3. If `"failed"`, say `Intent derivation failed. Check .pipeline/spec-refinement/intent.json.` Stop.
+- **Yes:** Read ONLY the `status` field. If `"passed"`, continue to Step 3. If `"failed"`, say `Intent derivation failed. Check .strut-pipeline/spec-refinement/intent.json.` Stop.
 - **No:** Say `Derive-intent did not produce output.` Stop.
 
-**Step pause.** If `.pipeline/step-mode` exists, say `STEP: spec-derive-intent — passed. Output: .pipeline/spec-refinement/intent.json. Next: spec-write.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+**Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: spec-derive-intent — passed. Output: .strut-pipeline/spec-refinement/intent.json. Next: spec-write.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
 
 ### Step 3: Dispatch spec-write
 
@@ -82,33 +82,33 @@ Increment: `iteration = iteration + 1`.
 
 Dispatch the spec-write agent via the Agent tool with `subagent_type: "spec-write"`. Pass the change request as the prompt.
 
-When the agent completes, check: does `.pipeline/spec-refinement/spec.json` exist?
+When the agent completes, check: does `.strut-pipeline/spec-refinement/spec.json` exist?
 
-- **Yes:** Read ONLY the `status` field. If `"drafted"`, continue to Step 4. If `"failed"`, say `Spec-write failed. Check .pipeline/spec-refinement/spec.json.` Stop.
+- **Yes:** Read ONLY the `status` field. If `"drafted"`, continue to Step 4. If `"failed"`, say `Spec-write failed. Check .strut-pipeline/spec-refinement/spec.json.` Stop.
 - **No:** Say `Spec-write did not produce output.` Stop.
 
-**Step pause.** If `.pipeline/step-mode` exists, say `STEP: spec-write — drafted (iteration [iteration]). Output: .pipeline/spec-refinement/spec.json. Next: spec-review.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+**Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: spec-write — drafted (iteration [iteration]). Output: .strut-pipeline/spec-refinement/spec.json. Next: spec-review.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
 
 ### Step 4: Dispatch spec-review
 
-Dispatch the spec-review agent via the Agent tool with `subagent_type: "spec-review"`. Pass a prompt instructing it to read and review `.pipeline/spec-refinement/spec.json`.
+Dispatch the spec-review agent via the Agent tool with `subagent_type: "spec-review"`. Pass a prompt instructing it to read and review `.strut-pipeline/spec-refinement/spec.json`.
 
-When the agent completes, check: does `.pipeline/spec-refinement/spec-review.json` exist?
+When the agent completes, check: does `.strut-pipeline/spec-refinement/spec-review.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`:
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: spec-review — passed (iteration [iteration]). Output: .pipeline/spec-refinement/spec-review.json. Next: spec approval gate.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: spec-review — passed (iteration [iteration]). Output: .strut-pipeline/spec-refinement/spec-review.json. Next: spec approval gate.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Say `Spec refinement complete. Spec approved after [iteration] iteration(s).` Return to run-process-change.
   - If `"failed"`: continue to Step 5.
 - **No:** Say `Spec-review did not produce output.` Stop.
 
 ### Step 5: Check iteration budget
 
-If `iteration >= 5`: say `Spec cycle exhausted (5 iterations). Last review feedback in .pipeline/spec-refinement/spec-review.json. Escalating to human.` Stop.
+If `iteration >= 5`: say `Spec cycle exhausted (5 iterations). Last review feedback in .strut-pipeline/spec-refinement/spec-review.json. Escalating to human.` Stop.
 
 Otherwise: say `Spec review failed (iteration [iteration] of 5). Re-dispatching spec-write with feedback.`
 
-**Step pause.** If `.pipeline/step-mode` exists, say `STEP: spec-review — failed (iteration [iteration] of 5). Output: .pipeline/spec-refinement/spec-review.json. Next: spec-write (retry).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+**Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: spec-review — failed (iteration [iteration] of 5). Output: .strut-pipeline/spec-refinement/spec-review.json. Next: spec-write (retry).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
 
 Go to Step 3 (dispatch spec-write again). spec-write will read `spec-review.json` as its feedback source per its own input contract.
 

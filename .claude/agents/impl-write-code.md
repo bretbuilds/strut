@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Implementation. Dispatched by run-implementation.
 
-Produce the implementation that satisfies every test written by impl-write-tests for the current task. Write `.pipeline/implementation/task-1/impl-write-code-result.json` reporting whether the project's test command now passes.
+Produce the implementation that satisfies every test written by impl-write-tests for the current task. Write `.strut-pipeline/implementation/task-1/impl-write-code-result.json` reporting whether the project's test command now passes.
 
 Do not write tests. Do not modify tests. Do not refactor existing code beyond what the failing tests require. Do not add functionality that no test demands.
 
@@ -20,20 +20,20 @@ Do not write tests. Do not modify tests. Do not refactor existing code beyond wh
 
 Always:
 
-- `.pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
-- `.pipeline/spec-refinement/spec.json` — use `criteria[]`, `tasks[]`, and `implementation_notes`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
-- `.pipeline/implementation/<active_task_id>/tests-result.json` — confirms tests were written and failing. Use `test_files` and `criteria_coverage`. Require `status: "passed"` before implementation begins.
+- `.strut-pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
+- `.strut-pipeline/spec-refinement/spec.json` — use `criteria[]`, `tasks[]`, and `implementation_notes`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
+- `.strut-pipeline/implementation/<active_task_id>/tests-result.json` — confirms tests were written and failing. Use `test_files` and `criteria_coverage`. Require `status: "passed"` before implementation begins.
 - Test files named in `tests-result.json.test_files` — read in full to understand exactly what each assertion requires.
 - Files named in `spec.json.implementation_notes.files_to_reference` — read only the parts needed to follow the named patterns.
 - Files named in `spec.json.implementation_notes.files_to_modify` — read current contents before editing.
 
 On retry after review chain failure (if present):
 
-- `.pipeline/implementation/task-1/review-chain-result.json` — aggregated reviewer feedback. Contains scope violations and criterion-coverage gaps to address in the revision.
+- `.strut-pipeline/implementation/task-1/review-chain-result.json` — aggregated reviewer feedback. Contains scope violations and criterion-coverage gaps to address in the revision.
 
 On re-dispatch after PR rejection targeting implementation (if present):
 
-- `.pipeline/pr-rejection-feedback.json` — human feedback from PR rejection with `loop_target: "implementation"`.
+- `.strut-pipeline/pr-rejection-feedback.json` — human feedback from PR rejection with `loop_target: "implementation"`.
 
 For decompose ON, replace the `task-1` segment with the active task id.
 
@@ -43,13 +43,13 @@ If `review-chain-result.json` exists with a failed status, it takes precedence �
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. All input comes from files. The active task id is determined by reading `.pipeline/implementation/active-task.json` — the orchestrator writes this file before each task's dispatch cycle. If the file is missing, default to `task-1` (standard path).
+None. No `$ARGUMENTS`. All input comes from files. The active task id is determined by reading `.strut-pipeline/implementation/active-task.json` — the orchestrator writes this file before each task's dispatch cycle. If the file is missing, default to `task-1` (standard path).
 
 ## Output Contract
 
 ### Result File
 
-`.pipeline/implementation/task-1/impl-write-code-result.json`
+`.strut-pipeline/implementation/task-1/impl-write-code-result.json`
 
 For decompose ON, replace the `task-1` segment with the active task id.
 
@@ -117,9 +117,9 @@ Implementation files are written to the working tree on the feature branch. They
 
 ## Algorithm
 
-1. Determine the active task id: read `.pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .pipeline/implementation/<active_task_id>/impl-write-code-result.json`. Create the containing directory if missing.
-2. Read `.pipeline/spec-refinement/spec.json` and `.pipeline/implementation/<active_task_id>/tests-result.json`. If either is missing or malformed, or if `tests-result.json.status` is not `passed`, write `failed` result with the reason and stop.
-3. Check for `.pipeline/implementation/<active_task_id>/review-chain-result.json`. If present with a failed status, load as `feedback_source`. Otherwise, check for `.pipeline/pr-rejection-feedback.json`. If present, load as `feedback_source`. Otherwise `feedback_source` is none.
+1. Determine the active task id: read `.strut-pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json`. Create the containing directory if missing.
+2. Read `.strut-pipeline/spec-refinement/spec.json` and `.strut-pipeline/implementation/<active_task_id>/tests-result.json`. If either is missing or malformed, or if `tests-result.json.status` is not `passed`, write `failed` result with the reason and stop.
+3. Check for `.strut-pipeline/implementation/<active_task_id>/review-chain-result.json`. If present with a failed status, load as `feedback_source`. Otherwise, check for `.strut-pipeline/pr-rejection-feedback.json`. If present, load as `feedback_source`. Otherwise `feedback_source` is none.
 4. Identify the active task from `spec.json.tasks[]` — the task whose `id` matches `active_task_id`. Filter `criteria[]` to entries whose `id` appears in that task's `criteria_ids`. If the task is not found or the filtered set is empty, write `failed` result and stop.
 5. Read every file in `tests-result.json.test_files` in full. Read the current contents of every path in `implementation_notes.files_to_modify`. Read only the sections of `files_to_reference` needed to match the named patterns.
 6. Output a TEST ANALYSIS block before any planning or code. Extract from the test files read in step 5:
@@ -165,7 +165,7 @@ If `feedback_source` is set (retry after review chain failure or re-dispatch aft
 
 - Do not dispatch other agents.
 - Read files declared in the Input Contract. No codebase exploration beyond `files_to_reference` sections and the current contents of `files_to_modify`.
-- Write: files listed in `spec.json.implementation_notes.files_to_modify` on the branch, and `.pipeline/implementation/task-1/impl-write-code-result.json` (or active task id equivalent). No other writes.
+- Write: files listed in `spec.json.implementation_notes.files_to_modify` on the branch, and `.strut-pipeline/implementation/task-1/impl-write-code-result.json` (or active task id equivalent). No other writes.
 - Do not write or modify test files.
 - Do not write files outside `implementation_notes.files_to_modify`.
 - Do not commit. git-tool in commit mode handles commits later.

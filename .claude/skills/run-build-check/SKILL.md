@@ -7,7 +7,7 @@ description: Sub-orchestrator for build verification. Runs the build-check scrip
 
 Process Change phase, Build Verification. Dispatched by run-process-change.
 
-Run `.claude/scripts/build-check.sh`, and if it reports failure, dispatch the build-error-cleanup agent and re-run the script. Loop up to 3 cleanup attempts. Aggregate the outcome into `.pipeline/build-check/build-result.json` and return to run-process-change. Retry budget is 3 cleanups; no sub-retry at finer granularity. Do not evaluate build output — route on `status` only.
+Run `.claude/scripts/build-check.sh`, and if it reports failure, dispatch the build-error-cleanup agent and re-run the script. Loop up to 3 cleanup attempts. Aggregate the outcome into `.strut-pipeline/build-check/build-result.json` and return to run-process-change. Retry budget is 3 cleanups; no sub-retry at finer granularity. Do not evaluate build output — route on `status` only.
 
 ## Dispatches
 
@@ -18,8 +18,8 @@ Run `.claude/scripts/build-check.sh`, and if it reports failure, dispatch the bu
 
 ### Files Read (for status routing only)
 
-- `.pipeline/build-check/build-check.json` — read after every `build-check.sh` run. Only the top-level `status` field is routed on.
-- `.pipeline/build-check/build-error-cleanup.json` — read after every cleanup dispatch. Only the top-level `status` field is routed on.
+- `.strut-pipeline/build-check/build-check.json` — read after every `build-check.sh` run. Only the top-level `status` field is routed on.
+- `.strut-pipeline/build-check/build-error-cleanup.json` — read after every cleanup dispatch. Only the top-level `status` field is routed on.
 
 ### Other Inputs
 
@@ -33,7 +33,7 @@ None. The build-check script runs against the current working tree regardless of
 
 ### Result File
 
-- `.pipeline/build-check/build-result.json`
+- `.strut-pipeline/build-check/build-result.json`
 
 Written directly.
 
@@ -60,7 +60,7 @@ Failed:
   "attempts": 4,
   "cleanups_run": 3,
   "failed_reason": "retry_budget_exhausted",
-  "summary": "Build verification failed after 3 cleanup attempts. See .pipeline/build-check/build-check.json for the remaining errors."
+  "summary": "Build verification failed after 3 cleanup attempts. See .strut-pipeline/build-check/build-check.json for the remaining errors."
 }
 ```
 
@@ -84,10 +84,10 @@ On success or failure, run-process-change reads `build-result.json` and routes o
 ### Step 1: Setup
 
 ```bash
-mkdir -p .pipeline/build-check
-rm -f .pipeline/build-check/build-check.json
-rm -f .pipeline/build-check/build-error-cleanup.json
-rm -f .pipeline/build-check/build-result.json
+mkdir -p .strut-pipeline/build-check
+rm -f .strut-pipeline/build-check/build-check.json
+rm -f .strut-pipeline/build-check/build-error-cleanup.json
+rm -f .strut-pipeline/build-check/build-result.json
 ```
 
 Stale files from a previous invocation must be removed — reading them as fresh output would route incorrectly.
@@ -98,12 +98,12 @@ Initialize orchestrator-local counters: `attempts = 0`, `cleanups_run = 0`.
 
 Run `bash .claude/scripts/build-check.sh` via the Bash tool. Increment `attempts` to 1.
 
-When the script completes, check: does `.pipeline/build-check/build-check.json` exist and parse as JSON?
+When the script completes, check: does `.strut-pipeline/build-check/build-check.json` exist and parse as JSON?
 
 - **No (missing or malformed):** go to Step 6 with `failed_reason = "build_check_output_missing"` or `"build_check_output_malformed"`, overwrite placeholder, stop.
 - **Yes:** read ONLY the top-level `status` field.
   - `"passed"` →
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: build-check — passed (initial run). Output: .pipeline/build-check/build-check.json. Next: write passed result.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: build-check — passed (initial run). Output: .strut-pipeline/build-check/build-check.json. Next: write passed result.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Go to Step 5 (overwrite placeholder with passed result, stop).
   - `"failed"` → continue to Step 3.
   - any other value → treat as malformed, go to Step 6 with `failed_reason = "build_check_output_malformed"`.
@@ -122,12 +122,12 @@ Increment `cleanups_run` before dispatching.
 
 Dispatch the build-error-cleanup agent via the Agent tool with `subagent_type: "build-error-cleanup"`. The prompt is `run`.
 
-When the agent completes, check: does `.pipeline/build-check/build-error-cleanup.json` exist and parse as JSON?
+When the agent completes, check: does `.strut-pipeline/build-check/build-error-cleanup.json` exist and parse as JSON?
 
 - **No (missing or malformed):** go to Step 6 with `failed_reason = "cleanup_output_missing"`, overwrite placeholder, stop.
 - **Yes:** read ONLY the top-level `status` field.
   - `"fixed"` →
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: build-error-cleanup — fixed (attempt [cleanups_run]). Output: .pipeline/build-check/build-error-cleanup.json. Next: re-run build-check.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: build-error-cleanup — fixed (attempt [cleanups_run]). Output: .strut-pipeline/build-check/build-error-cleanup.json. Next: re-run build-check.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 3c.
   - `"failed"` → go to Step 6 with `failed_reason = "cleanup_declined"`, overwrite placeholder, stop.
   - any other value → treat as malformed, go to Step 6 with `failed_reason = "cleanup_output_missing"`.
@@ -136,7 +136,7 @@ When the agent completes, check: does `.pipeline/build-check/build-error-cleanup
 
 Run `bash .claude/scripts/build-check.sh` via the Bash tool. Increment `attempts`.
 
-When the script completes, check: does `.pipeline/build-check/build-check.json` exist and parse as JSON?
+When the script completes, check: does `.strut-pipeline/build-check/build-check.json` exist and parse as JSON?
 
 - **No (missing or malformed):** go to Step 6 with `failed_reason = "build_check_output_missing"` or `"build_check_output_malformed"`.
 - **Yes:** read ONLY the top-level `status` field.
@@ -146,7 +146,7 @@ When the script completes, check: does `.pipeline/build-check/build-check.json` 
 
 ### Step 5: Overwrite placeholder with passed result
 
-Overwrite `.pipeline/build-check/build-result.json` with:
+Overwrite `.strut-pipeline/build-check/build-result.json` with:
 
 ```json
 {
@@ -162,7 +162,7 @@ Say `Build verification passed.` Return to run-process-change.
 
 ### Step 6: Overwrite placeholder with failed result
 
-Overwrite `.pipeline/build-check/build-result.json` with:
+Overwrite `.strut-pipeline/build-check/build-result.json` with:
 
 ```json
 {
@@ -171,7 +171,7 @@ Overwrite `.pipeline/build-check/build-result.json` with:
   "attempts": <final attempts value>,
   "cleanups_run": <final cleanups_run value>,
   "failed_reason": "<one of: build_check_output_missing | build_check_output_malformed | cleanup_output_missing | cleanup_declined | retry_budget_exhausted>",
-  "summary": "<one-line description naming the specific failure. Reference .pipeline/build-check/build-check.json or .pipeline/build-check/build-error-cleanup.json for details.>"
+  "summary": "<one-line description naming the specific failure. Reference .strut-pipeline/build-check/build-check.json or .strut-pipeline/build-check/build-error-cleanup.json for details.>"
 }
 ```
 

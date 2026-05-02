@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Build Verification. Dispatched by run-build-check.
 
-Read `.pipeline/build-check/build-check.json`, identify which stages failed and why, apply the smallest fix that addresses each reported error, then re-run the failed commands to verify. Write `.pipeline/build-check/build-error-cleanup.json` with `fixed` if every previously-failed stage now passes, or `failed` if any still fail.
+Read `.strut-pipeline/build-check/build-check.json`, identify which stages failed and why, apply the smallest fix that addresses each reported error, then re-run the failed commands to verify. Write `.strut-pipeline/build-check/build-error-cleanup.json` with `fixed` if every previously-failed stage now passes, or `failed` if any still fail.
 
 Do not change test expectations to make tests pass. Do not suppress errors (`@ts-ignore`, `// eslint-disable`, `# type: ignore`, etc.). Do not relax build or lint configuration. Do not refactor code beyond what the specific error requires. Do not add functionality the error does not demand.
 
@@ -20,8 +20,8 @@ Do not change test expectations to make tests pass. Do not suppress errors (`@ts
 
 Always:
 
-- `.pipeline/build-check/build-check.json` — the source of truth for what failed. Read every entry in `checks[]` whose `status` is `failed`: use `command` (to re-run after fixing) and `error_output` (to identify file/line/error). Also read `toolchain` to understand what tool produced the errors.
-- `.pipeline/spec-refinement/spec.json` — use `implementation_notes.files_to_modify` and `files_to_reference`. Apply fixes to those files first; only touch files outside that set when the error itself points there.
+- `.strut-pipeline/build-check/build-check.json` — the source of truth for what failed. Read every entry in `checks[]` whose `status` is `failed`: use `command` (to re-run after fixing) and `error_output` (to identify file/line/error). Also read `toolchain` to understand what tool produced the errors.
+- `.strut-pipeline/spec-refinement/spec.json` — use `implementation_notes.files_to_modify` and `files_to_reference`. Apply fixes to those files first; only touch files outside that set when the error itself points there.
 
 On demand (driven by error_output):
 
@@ -35,7 +35,7 @@ None. No `$ARGUMENTS`. All input comes from files.
 
 ### Result File
 
-`.pipeline/build-check/build-error-cleanup.json`
+`.strut-pipeline/build-check/build-error-cleanup.json`
 
 ### Result Schema
 
@@ -92,11 +92,11 @@ This agent's behavior does not vary by modifier. The fix-the-reported-errors con
 
 ## Algorithm
 
-1. `rm -f .pipeline/build-check/build-error-cleanup.json`. `mkdir -p .pipeline/build-check` if missing.
-2. Read `.pipeline/build-check/build-check.json`. If missing or malformed, write `failed` with the reason and stop.
+1. `rm -f .strut-pipeline/build-check/build-error-cleanup.json`. `mkdir -p .strut-pipeline/build-check` if missing.
+2. Read `.strut-pipeline/build-check/build-check.json`. If missing or malformed, write `failed` with the reason and stop.
 3. If `build-check.json.status` is not `failed`, or no entry in `checks[]` has `status: "failed"`, write `failed` with "nothing to fix" in `summary` and stop. (run-build-check should not have dispatched — but report truthfully.)
 4. Collect the failed stages: for each `s` in `checks[]` where `status == "failed"`, record `(stage_name, command, error_output)`. If any `error_output` is empty, record a `remaining_failures` entry with reason "no error output captured" — do not guess.
-5. Read `.pipeline/spec-refinement/spec.json` to learn `implementation_notes.files_to_modify` and `files_to_reference`. If the file is missing or malformed, proceed without spec context but note it in `summary`.
+5. Read `.strut-pipeline/spec-refinement/spec.json` to learn `implementation_notes.files_to_modify` and `files_to_reference`. If the file is missing or malformed, proceed without spec context but note it in `summary`.
 6. Execute the Plan Mode Directive below. The plan guides internal reasoning and does not need to appear in the final message.
 7. Apply fixes per the plan. Read each file in full before editing. Make the smallest edit that addresses the specific error.
 8. Re-run each failed stage's `command` exactly as captured in `build-check.json`. Capture stdout+stderr and exit code per stage.
@@ -132,10 +132,10 @@ Then apply the plan file by file in the order listed.
 
 - Do not dispatch other agents.
 - Read: `build-check.json`, `spec.json`, and source files named in `error_output`. No codebase-wide exploration.
-- Write: source files on the branch that are the immediate site of a reported error; `.pipeline/build-check/build-error-cleanup.json`. No other writes.
+- Write: source files on the branch that are the immediate site of a reported error; `.strut-pipeline/build-check/build-error-cleanup.json`. No other writes.
 - Do not modify: test assertions, test case structure (`it` / `test` / `describe` blocks added, removed, or renamed), or test selectors (`.skip`, `.only`, `xit`, `xdescribe`).
 - Do not modify: `tsconfig*.json`, `.eslintrc*`, `.prettierrc*`, `pyproject.toml`, `setup.cfg`, `mypy.ini`, `Cargo.toml`, `go.mod`, `Makefile`, `package.json` scripts, `.strut/build.json`, or any CI configuration.
-- Do not modify: `.pipeline/`, `.claude/`, `.strut/`, or `docs/` contents, except the result file under `.pipeline/build-check/`.
+- Do not modify: `.strut-pipeline/`, `.claude/`, `.strut/`, or `docs/` contents, except the result file under `.strut-pipeline/build-check/`.
 - Do not add or change error-suppression directives (`@ts-ignore`, `// eslint-disable`, `# type: ignore`, `#[allow(...)]`, etc.) unless the spec's `implementation_notes` explicitly calls for one.
 - Do not install packages, run `npm install` / `cargo add` / `pip install` / `go get`, or modify lockfiles. A missing dependency is a `remaining_failure`.
 - Do not commit. Edits ride along with the existing task commit.

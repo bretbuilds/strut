@@ -5,7 +5,7 @@ Generate tests in these categories. Not every category applies to every skill or
 ## Category A: Happy path — correct input produces correct output
 
 **A1: Normal invocation with valid fixtures**
-- Create properly-formed input files in `.pipeline/`
+- Create properly-formed input files in `.strut-pipeline/`
 - Invoke the skill/agent
 - Assert: result file exists, valid JSON, status = "passed" (or the skill's success status), `output_file` field points to real file
 
@@ -33,25 +33,25 @@ Generate tests in these categories. Not every category applies to every skill or
 - Assert: result file exists with failure status, skill/agent did not crash silently
 
 **B3: Empty pipeline directory**
-- Start with completely empty `.pipeline/`
+- Start with completely empty `.strut-pipeline/`
 - Invoke
 - Assert: result file exists with clear failure message, not a stall or hallucinated input
 
 ## Category C: Boundary constraints — stays in its lane
 
 **C1: Does not write files outside its contract**
-- List all files in `.pipeline/` before and after invocation
+- List all files in `.strut-pipeline/` before and after invocation
 - Assert: only files listed in the output contract were created or modified
 - Assert: no files in `.claude/rules/` were modified
-- Assert: no files outside `.pipeline/` were created
-- When generating the assertion via `find .pipeline`, exclude the test script itself (`test-${COMPONENT}.sh`) and any per-test output file (e.g., `test-c1-output.txt`) — both live in `.pipeline/` and are fixtures, not agent output
+- Assert: no files outside `.strut-pipeline/` were created
+- When generating the assertion via `find .pipeline`, exclude the test script itself (`test-${COMPONENT}.sh`) and any per-test output file (e.g., `test-c1-output.txt`) — both live in `.strut-pipeline/` and are fixtures, not agent output
 
 **C2: Does not dispatch prohibited components (skills only)**
 - Check the skill's output and logs for evidence of dispatching components outside its declared list
 - Assert: only components in the `Dispatches` list were invoked
 
 **C3: Does not read files outside its input contract**
-- Create decoy files in `.pipeline/` that should NOT be read
+- Create decoy files in `.strut-pipeline/` that should NOT be read
 - Invoke
 - Assert: output shows no evidence of reading decoy content
 
@@ -81,7 +81,7 @@ Generate tests in these categories. Not every category applies to every skill or
 - Assert: arrays are arrays (even if empty)
 
 **E2: Stale state handling**
-- Pre-populate `.pipeline/` with result files from a previous run
+- Pre-populate `.strut-pipeline/` with result files from a previous run
 - Invoke
 - Assert: skill/agent uses `rm -f` and writes fresh results, not appending to stale files
 
@@ -125,7 +125,7 @@ Examples of what these look like for different components:
 - `spec-write`: Intent with `must_never` = empty array (trust OFF) — does it still generate at least one positive criterion? (Answer: yes, at least one user-facing or data-facing criterion.)
 - `review-scope`: Diff contains a file not in the impact scan but the change is a legitimate new dependency — does it flag as scope creep or recognize it? (Answer: flag it — the reviewer is conservative. The flag is reviewed at the gate.)
 - `spec-review`: Spec with exactly 3 tasks where task 2 depends on task 1's output — does Phase 3 (decomposition validation, decompose ON only) flag the dependency? (Answer: flag it — each task must be independently testable.)
-- `review-security`: Diff adds a query that joins through a table without its own RLS policy — does it catch the pivot bypass? (Answer: must catch it — this is the specific RLS bypass pattern from security.md.)
+- `review-security`: Diff adds a query that joins through a table without its own RLS policy — does it catch the pivot bypass? (Answer: must catch it — this is the specific RLS bypass pattern from strut-security.md.)
 - `truth-classify`: Change request mentions "updating a button label" but the repo scan reveals the button triggers an auth flow — does classification escalate to trust ON? (Answer: yes — scan reveals auth involvement, trust modifier activates.)
 
 ## Lessons learned — apply to all test sessions
@@ -142,7 +142,7 @@ Model-specific failure modes have been observed historically. Even if specific f
 
 ### Structural patterns that must hold
 
-- `rm -f` before writing `.pipeline/` files. Test E2 catches stale state.
+- `rm -f` before writing `.strut-pipeline/` files. Test E2 catches stale state.
 - Result file has all fields declared in the output contract. Test E1 catches this.
 - Agents do not dispatch. Skills dispatch only their declared list. Test C2 catches this.
 - Orchestrators route on `status` fields only, never on content fields.

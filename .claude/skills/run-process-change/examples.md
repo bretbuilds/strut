@@ -45,7 +45,7 @@ State: `gate == "pr_review"`, `next == "awaiting_merge"`
 
 ### `reject implementation <feedback>` — code re-runs, tests and branch survive
 
-For each `task-*` directory under `.pipeline/implementation/`:
+For each `task-*` directory under `.strut-pipeline/implementation/`:
 
 | Removed (per task dir) | Kept (per task dir) |
 |---|---|
@@ -59,14 +59,14 @@ For each `task-*` directory under `.pipeline/implementation/`:
 | Removed (top level) | Kept |
 |---|---|
 | `implementation-status.json` | `git-branch-result.json` |
-| `active-task.json` | `.pipeline/spec-refinement/*` |
+| `active-task.json` | `.strut-pipeline/spec-refinement/*` |
 | `build-result.json`, `impl-describe-flow.txt`, `git-pr-result.json` | |
 
 ### `reject spec <feedback>` — spec revises, implementation wiped entirely
 
 | Removed | Kept |
 |---|---|
-| `.pipeline/implementation/` (entire dir) | `.pipeline/spec-refinement/` (spec-write reads prior spec + feedback) |
-| `.pipeline/build-check/` (entire dir) | `.pipeline/classification.json` |
-| `.pipeline/git-pr-result.json` | `.pipeline/classification-log.md` |
-| `.pipeline/impl-describe-flow.txt` | `.pipeline/impact-scan.md` |
+| `.strut-pipeline/implementation/` (entire dir) | `.strut-pipeline/spec-refinement/` (spec-write reads prior spec + feedback) |
+| `.strut-pipeline/build-check/` (entire dir) | `.strut-pipeline/classification.json` |
+| `.strut-pipeline/git-pr-result.json` | `.strut-pipeline/classification-log.md` |
+| `.strut-pipeline/impl-describe-flow.txt` | `.strut-pipeline/impact-scan.md` |

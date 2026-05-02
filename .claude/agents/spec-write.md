@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Spec Refinement. Dispatched by run-spec-refinement.
 
-Produce `.pipeline/spec-refinement/spec.json` matching the locked schema. The spec is the central contract: spec-review, impl-write-tests, impl-write-code, review-scope, review-criteria-eval, update-capture, and git-tool (pr) all read it. Every downstream agent's quality depends on this file being grounded in actual intent and actual scan evidence — not invented.
+Produce `.strut-pipeline/spec-refinement/spec.json` matching the locked schema. The spec is the central contract: spec-review, impl-write-tests, impl-write-code, review-scope, review-criteria-eval, update-capture, and git-tool (pr) all read it. Every downstream agent's quality depends on this file being grounded in actual intent and actual scan evidence — not invented.
 
 Do not scan the codebase. Do not derive intent. Read upstream artifacts and compose them into the locked schema.
 
@@ -20,18 +20,18 @@ Do not scan the codebase. Do not derive intent. Read upstream artifacts and comp
 
 Always:
 
-- `.pipeline/spec-refinement/intent.json` — derived intent: `user_sees`, `business_context`, `must_never` (empty for trust OFF).
-- `.pipeline/impact-scan.md` — human-readable evidence map. Copy into `implementation_notes`; do not re-derive.
-- `.pipeline/truth-repo-impact-scan-result.json` — structured scan evidence. Use for `files_to_modify`, `files_to_reference`, `patterns_to_follow`.
-- `.pipeline/classification.json` — use `what` field. Echo verbatim into spec.
+- `.strut-pipeline/spec-refinement/intent.json` — derived intent: `user_sees`, `business_context`, `must_never` (empty for trust OFF).
+- `.strut-pipeline/impact-scan.md` — human-readable evidence map. Copy into `implementation_notes`; do not re-derive.
+- `.strut-pipeline/truth-repo-impact-scan-result.json` — structured scan evidence. Use for `files_to_modify`, `files_to_reference`, `patterns_to_follow`.
+- `.strut-pipeline/classification.json` — use `what` field. Echo verbatim into spec.
 
 On revision from spec cycle (if present):
 
-- `.pipeline/spec-refinement/spec-review.json` — contains `review_issues[]` and `validation_issues[]` arrays. Fold both into one revision.
+- `.strut-pipeline/spec-refinement/spec-review.json` — contains `review_issues[]` and `validation_issues[]` arrays. Fold both into one revision.
 
 On revision from PR rejection targeting spec (if present):
 
-- `.pipeline/pr-rejection-feedback.json` — human feedback from PR rejection with `loop_target: "spec"`.
+- `.strut-pipeline/pr-rejection-feedback.json` — human feedback from PR rejection with `loop_target: "spec"`.
 
 ### Feedback Precedence
 
@@ -45,7 +45,7 @@ None. No `$ARGUMENTS`. All input comes from files.
 
 ### Result File
 
-`.pipeline/spec-refinement/spec.json`
+`.strut-pipeline/spec-refinement/spec.json`
 
 This is both the result file (status routed on by run-spec-refinement) and the central content file consumed by seven downstream agents.
 
@@ -74,7 +74,7 @@ The locked schema:
       "when": "a violation of the trust boundary is attempted",
       "then": "the violation is actively rejected (error, status code, or mutation blocked)",
       "type": "negative",
-      "source": "Cross-tenant data access — source: .claude/rules/security.md"
+      "source": "Cross-tenant data access — source: .claude/rules/strut-security.md"
     }
   ],
 
@@ -123,10 +123,10 @@ No other status values.
 
 ## Algorithm
 
-1. Read `.pipeline/classification.json`, `.pipeline/spec-refinement/intent.json`, `.pipeline/impact-scan.md`, `.pipeline/truth-repo-impact-scan-result.json`. If any required file is missing or malformed, write `failed` result and stop.
-2. Check for `.pipeline/pr-rejection-feedback.json`. If it exists, load as `feedback_source` and ignore any `spec-review.json`. Otherwise, check for `.pipeline/spec-refinement/spec-review.json`; if present, load as `feedback_source`. Otherwise `feedback_source` is none.
-3. If `feedback_source` is none (fresh draft): `rm -f .pipeline/spec-refinement/spec.json` to clear any stale file from a prior run.
-4. If `feedback_source` is set (revision pass): read the existing `.pipeline/spec-refinement/spec.json` before composing. For every criterion, field, and value NOT mentioned in the feedback, preserve it exactly as-is. Only modify what the feedback specifically names. Do not rewrite criteria that were not flagged.
+1. Read `.strut-pipeline/classification.json`, `.strut-pipeline/spec-refinement/intent.json`, `.strut-pipeline/impact-scan.md`, `.strut-pipeline/truth-repo-impact-scan-result.json`. If any required file is missing or malformed, write `failed` result and stop.
+2. Check for `.strut-pipeline/pr-rejection-feedback.json`. If it exists, load as `feedback_source` and ignore any `spec-review.json`. Otherwise, check for `.strut-pipeline/spec-refinement/spec-review.json`; if present, load as `feedback_source`. Otherwise `feedback_source` is none.
+3. If `feedback_source` is none (fresh draft): `rm -f .strut-pipeline/spec-refinement/spec.json` to clear any stale file from a prior run.
+4. If `feedback_source` is set (revision pass): read the existing `.strut-pipeline/spec-refinement/spec.json` before composing. For every criterion, field, and value NOT mentioned in the feedback, preserve it exactly as-is. Only modify what the feedback specifically names. Do not rewrite criteria that were not flagged.
 5. Execute the Plan Mode Directive below. The plan guides internal reasoning — it does not need to appear in the final message.
 6. Compose `what` by echoing `classification.json.what` verbatim.
 7. Compose `user_sees` by echoing `intent.json.user_sees` verbatim.
@@ -136,7 +136,7 @@ No other status values.
 11. Compose `out_of_scope[]` with at least one entry, grounded in `intent.json` boundaries and `classification.json` scope. If none is evident, state the smallest adjacent concern explicitly excluded by the change.
 12. Compose `tasks[]` with exactly one task for the standard path: `{ "id": "task-1", "description": "...", "criteria_ids": [every C-id] }`. Negative criteria are included in `criteria_ids` alongside positive ones — they belong to the same task. Verify the union of `criteria_ids` across all tasks equals the set of `criteria[].id` values.
 13. If `feedback_source` is set, address every issue it names in the revised output: each `review_issues[]` entry, each `validation_issues[]` entry (for spec-review), or the human feedback text (for pr-rejection). One revision folds all feedback.
-14. Write `.pipeline/spec-refinement/spec.json` with `status: "drafted"`. Stop.
+14. Write `.strut-pipeline/spec-refinement/spec.json` with `status: "drafted"`. Stop.
 
 ## Plan Mode Directive
 
@@ -165,7 +165,7 @@ If you find gaps, fix them before writing.
 
 - Do not dispatch other agents.
 - Read only files declared in the Input Contract. No codebase scanning — `Grep` and `Glob` are not granted.
-- Write only `.pipeline/spec-refinement/spec.json`.
+- Write only `.strut-pipeline/spec-refinement/spec.json`.
 - Do not change classification. Do not re-derive intent. Do not re-run the scan.
 - Do not pause for human input. Compose, write, exit.
 

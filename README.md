@@ -12,13 +12,13 @@ Each letter represents a design principle:
 - **Test-driven.** Tests are written before implementation, and they're the permanent asset. Code is disposable; the test suite is what survives.
 - **Research-grounded.** Every structural decision cites its source: peer-reviewed papers, industry reports, or explicit design judgment. Nothing is vibes-based. See [`architectural-decisions.md`](docs/strut-architecture/architectural-decisions.md) for the full rationale.
 - **User-gated.** The pipeline pauses at two high-leverage points (spec approval and PR review) where human judgment converts into the most protection. Automated review runs first so you review pre-filtered output, not raw diffs.
-- **Traceable.** Agents communicate through file contracts in `.pipeline/`, not shared context. Every decision has a paper trail from scan evidence → classification → spec → tests → implementation → review.
+- **Traceable.** Agents communicate through file contracts in `.strut-pipeline/`, not shared context. Every decision has a paper trail from scan evidence → classification → spec → tests → implementation → review.
 
 ## How it works
 
 STRUT is a change-processing pipeline. You describe a change; the pipeline scans your codebase, classifies the change by risk, writes a spec, gets your approval, implements with tests first, runs an automated review chain, and opens a PR. You're prompted at two gates: spec approval (before implementation) and PR review (before merge).
 
-The pipeline has three phases, **Read Truth** (scan the codebase, classify the change), **Process Change** (spec → approve → test → implement → review → build), and **Update Truth** (capture knowledge for the next run), connected by file contracts in `.pipeline/` that keep agents isolated from each other's context.
+The pipeline has three phases, **Read Truth** (scan the codebase, classify the change), **Process Change** (spec → approve → test → implement → review → build), and **Update Truth** (capture knowledge for the next run), connected by file contracts in `.strut-pipeline/` that keep agents isolated from each other's context.
 
 A classification system scales ceremony to risk. Two independent modifiers, **trust** (fires when the change touches auth, security, schema, or data boundaries) and **decompose** (fires when the change crosses 2+ architectural boundaries), add or remove pipeline steps based on what the scan finds, not on human guesswork.
 
@@ -33,7 +33,7 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 - A pipeline of orchestrator skills and worker agents under `.claude/`
 - A classification system (trust / decompose modifiers) that scales ceremony to risk
 - Rules files that govern both session-level Claude behavior and pipeline execution
-- A file contract system in `.pipeline/` that lets agents communicate without contaminating each other's context
+- A file contract system in `.strut-pipeline/` that lets agents communicate without contaminating each other's context
 
 **What STRUT doesn't provide:**
 
@@ -48,7 +48,7 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 - Claude Code installed (`.claude/rules/` auto-loading requires v2.0.64 or later)
 - Project under version control with a clean branching workflow
 - A working build/lint/test pipeline in your project. STRUT orchestrates these, it doesn't provide them
-- Familiarity with your project's data-layer paths (for scoping `database.md` if you use it)
+- Familiarity with your project's data-layer paths (for scoping `strut-database.md` if you use it)
 
 ---
 
@@ -62,11 +62,11 @@ These are mechanical steps. Claude can do them all in one pass given a stack des
 
 **A1. Fill in `CLAUDE.md` build commands.** Replace the commented-out placeholders with your project's actual commands. These are what `scripts/build-check.sh` will invoke.
 
-**A2. Adapt `scripts/build-check.sh`.** The script runs your build/lint/typecheck/test commands and writes a result JSON to `.pipeline/build-check/build-check.json`. The template ships with placeholder commands; update them to match your project. This is the one file in the architecture that is deliberately stack-specific.
+**A2. Adapt `scripts/build-check.sh`.** The script runs your build/lint/typecheck/test commands and writes a result JSON to `.strut-pipeline/build-check/build-check.json`. The template ships with placeholder commands; update them to match your project. This is the one file in the architecture that is deliberately stack-specific.
 
-**A3. Update `architecture.md` directory tree.** The template assumes a generic layout (`app/lib/`, `app/components/`). Update the tree and the shared-logic rule (rule 2) to match your project's actual structure. If your project doesn't have an `app/` directory or doesn't separate shared logic/UI that way, Claude can detect the real layout from your project and rewrite accordingly.
+**A3. Update `strut-architecture.md` directory tree.** The template assumes a generic layout (`app/lib/`, `app/components/`). Update the tree and the shared-logic rule (rule 2) to match your project's actual structure. If your project doesn't have an `app/` directory or doesn't separate shared logic/UI that way, Claude can detect the real layout from your project and rewrite accordingly.
 
-**A4. Scope or flag `database.md`.** If your stack matches the file's SQL + multi-tenant + RLS baseline (Postgres with Supabase, Prisma, Drizzle, etc.), Claude can uncomment the `globs:` frontmatter and set the paths to your actual data-layer directories. If your stack doesn't match (NoSQL, single-tenant, no RLS), Claude should flag the file as needing replacement rather than silently converting it, since replacing these rules is a judgment call you should review.
+**A4. Scope or flag `strut-database.md`.** If your stack matches the file's SQL + multi-tenant + RLS baseline (Postgres with Supabase, Prisma, Drizzle, etc.), Claude can uncomment the `globs:` frontmatter and set the paths to your actual data-layer directories. If your stack doesn't match (NoSQL, single-tenant, no RLS), Claude should flag the file as needing replacement rather than silently converting it, since replacing these rules is a judgment call you should review.
 
 **A5. Add your stack's commands to `.claude/settings.json`.** The template ships with git, file-manipulation, and general shell commands pre-authorized in the `allow` list, but not language-specific commands. Claude needs to add entries for your build, lint, typecheck, test, and package-manager commands so those don't interrupt the pipeline with permission prompts. Examples:
 
@@ -86,7 +86,7 @@ These are mechanical steps. Claude can do them all in one pass given a stack des
 | Rust | `Edit(Cargo.toml)`, `Bash(cargo publish:*)` |
 | Go | `Edit(go.mod)` |
 
-**A7. Add language-specific code conventions to `operating-rules.md`.** The file has a TODO block under "Code Generation" for language-specific rules. Claude can generate a reasonable starting set based on your language (destructuring depth for JS/TS, docstring style for Python, error-type conventions for Rust, etc.). Review these; coding conventions are opinionated and Claude is guessing at your preferences.
+**A7. Add language-specific code conventions to `strut-operating-rules.md`.** The file has a TODO block under "Code Generation" for language-specific rules. Claude can generate a reasonable starting set based on your language (destructuring depth for JS/TS, docstring style for Python, error-type conventions for Rust, etc.). Review these; coding conventions are opinionated and Claude is guessing at your preferences.
 
 **A8. Uncomment your stack's block in `.gitignore`.** The universal section (environment variables, OS files, editor files, logs, coverage, pipeline state) is active by default. Stack-specific entries (Node, Python, Rust, Go) ship commented out; Claude should uncomment the block matching your stack and delete the others. If skipped, build artifacts and dependency directories will start getting committed.
 
@@ -96,7 +96,7 @@ These are mechanical steps. Claude can do them all in one pass given a stack des
 
 These steps encode knowledge Claude doesn't have. Claude can scaffold but not fill in.
 
-**B1. Populate `security.md` MUST NEVER section.** Each entry here becomes a negative test under trust ON. Claude can suggest generic invariants ("users from one org must not access another org's data") but the load-bearing entries come from your understanding of what breaks if violated: *"payment records must never be modified after the settlement timestamp,"* *"audit logs must never lose entries on partial failure."* Wrong MUST NEVERs are worse than missing ones: they become tests that either never fire (useless) or block legitimate behavior (harmful).
+**B1. Populate `strut-security.md` MUST NEVER section.** Each entry here becomes a negative test under trust ON. Claude can suggest generic invariants ("users from one org must not access another org's data") but the load-bearing entries come from your understanding of what breaks if violated: *"payment records must never be modified after the settlement timestamp,"* *"audit logs must never lose entries on partial failure."* Wrong MUST NEVERs are worse than missing ones: they become tests that either never fire (useless) or block legitimate behavior (harmful).
 
 Format: `MUST NEVER: [constraint] — added [date] from [source]`. When trust ON, `spec-derive-intent` reads this section to populate the spec's `must_never[]` array; the scan reads it for trust-sensitive definitions.
 
@@ -167,7 +167,7 @@ Every pipelined change is classified by `truth-classify` based on scan evidence.
 
 Both modifiers are independent. Combinations: standard (both OFF), trust-only, decompose-only, guarded-decompose (both ON, adds adversarial spec review).
 
-**Verifying classification works on your codebase:** on the first few changes, check that `classification.json` in `.pipeline/` matches what you'd expect. If trust-sensitive files (auth, migrations, etc.) aren't triggering trust ON, the scan isn't recognizing your project's patterns, and you may need to add rules that help it identify trust-sensitive code.
+**Verifying classification works on your codebase:** on the first few changes, check that `classification.json` in `.strut-pipeline/` matches what you'd expect. If trust-sensitive files (auth, migrations, etc.) aren't triggering trust ON, the scan isn't recognizing your project's patterns, and you may need to add rules that help it identify trust-sensitive code.
 
 For worked examples of each classification path, see `docs/strut-architecture/modifiers/`.
 
@@ -193,7 +193,7 @@ Claude Code auto-loads all markdown files in `.claude/rules/` at session start. 
 
 Two mechanisms reduce this load:
 
-**Frontmatter scoping.** Rules files can include a `globs:` frontmatter block listing path patterns. The file then loads only when Claude is working with matching files. `database.md` ships configured for this (commented out until you set your paths). `pipeline.md` is already scoped to `.claude/skills/**`, `.claude/agents/**`, and `scripts/**`.
+**Frontmatter scoping.** Rules files can include a `globs:` frontmatter block listing path patterns. The file then loads only when Claude is working with matching files. `strut-database.md` ships configured for this (commented out until you set your paths). `strut-pipeline.md` is already scoped to `.claude/skills/**`, `.claude/agents/**`, and `scripts/**`.
 
 **Important:** use `globs:` (not the documented `paths:` syntax). The `paths:` field has known YAML parsing issues in Claude Code; it silently fails to match. Verify your scoping actually works by running `/context` in a session and checking which rules files appear in "Memory files."
 
@@ -202,12 +202,12 @@ Two mechanisms reduce this load:
 | File | Load scope | Purpose |
 |------|-----------|---------|
 | `CLAUDE.md` | Every session | Project identity, build commands, modifier table |
-| `architecture.md` | Global | Directory structure, naming, design principles |
-| `methodology.md` | Pipeline runs only | Anti-rationalization rules for session Claude during pipeline execution |
-| `operating-rules.md` | Global | Build/test/CI requirements, scope discipline, error recovery |
-| `security.md` | Global | Trust invariants, RLS rules, MUST NEVER constraints |
-| `database.md` | Scope after setup | Data-layer conventions (SQL + multi-tenant + RLS baseline) |
-| `pipeline.md` | Scoped (pre-set) | Skill/agent authoring constraints, file contracts, pipeline execution |
+| `strut-architecture.md` | Global | Directory structure, naming, design principles |
+| `strut-methodology.md` | Pipeline runs only | Anti-rationalization rules for session Claude during pipeline execution |
+| `strut-operating-rules.md` | Global | Build/test/CI requirements, scope discipline, error recovery |
+| `strut-security.md` | Global | Trust invariants, RLS rules, MUST NEVER constraints |
+| `strut-database.md` | Scope after setup | Data-layer conventions (SQL + multi-tenant + RLS baseline) |
+| `strut-pipeline.md` | Scoped (pre-set) | Skill/agent authoring constraints, file contracts, pipeline execution |
 
 ### Why constraint count matters
 
@@ -229,23 +229,23 @@ For the full constraint model and research citations, see `docs/strut-architectu
 
 ## Adapting the SQL + multi-tenant + RLS baseline
 
-Two files assume this common backend shape: `database.md` and `security.md` (RLS section).
+Two files assume this common backend shape: `strut-database.md` and `strut-security.md` (RLS section).
 
-**If your stack matches the baseline:** use the files as-is, just scope `database.md` (Section A) and populate `security.md`'s MUST NEVER section (Section B).
+**If your stack matches the baseline:** use the files as-is, just scope `strut-database.md` (Section A) and populate `strut-security.md`'s MUST NEVER section (Section B).
 
 **If your stack differs:**
-- Replace `database.md` with rules appropriate to your data layer (NoSQL access patterns, single-tenant query conventions, etc.)
-- Replace `security.md`'s RLS section with your equivalent authorization boundary (document-level access rules, row-level filters in the application layer, whatever your stack uses). Keep the Authentication, Data Immutability, Encryption and Secrets, and MUST NEVER sections, as those are stack-agnostic.
+- Replace `strut-database.md` with rules appropriate to your data layer (NoSQL access patterns, single-tenant query conventions, etc.)
+- Replace `strut-security.md`'s RLS section with your equivalent authorization boundary (document-level access rules, row-level filters in the application layer, whatever your stack uses). Keep the Authentication, Data Immutability, Encryption and Secrets, and MUST NEVER sections, as those are stack-agnostic.
 
 ---
 
 ## Common pitfalls
 
-**Stale `.pipeline/` files.** The pipeline cleans its own directories between runs, but if you manually interrupt a run and start a different change without invoking `/run-strut`, old files can persist. If you see agents reading unexpected content, check `.pipeline/` and clean it manually (`rm -rf .pipeline/spec-refinement .pipeline/implementation .pipeline/build-check .pipeline/update-truth`).
+**Stale `.strut-pipeline/` files.** The pipeline cleans its own directories between runs, but if you manually interrupt a run and start a different change without invoking `/run-strut`, old files can persist. If you see agents reading unexpected content, check `.strut-pipeline/` and clean it manually (`rm -rf .strut-pipeline/spec-refinement .strut-pipeline/implementation .strut-pipeline/build-check .strut-pipeline/update-truth`).
 
 **Frontmatter scoping silently not working.** Both bugs are documented: `paths:` syntax fails to parse, and occasionally scoped rules load globally anyway. Always verify with `/context` after setting up scoping. If a scoped file doesn't appear when expected, try the `globs:` syntax and restart the session.
 
-**Assuming the template's directory conventions match yours.** `architecture.md` rule 2 references `app/lib/` and `app/components/`. If your project uses `src/` or `packages/` or a different structure, update the rule, otherwise Claude will try to put files in directories that don't exist.
+**Assuming the template's directory conventions match yours.** `strut-architecture.md` rule 2 references `app/lib/` and `app/components/`. If your project uses `src/` or `packages/` or a different structure, update the rule, otherwise Claude will try to put files in directories that don't exist.
 
 **Skipping `docs/user-context/` setup and wondering why specs are thin.** `spec-derive-intent` works without it, but specs derived from scan evidence alone tend to miss product context. If specs keep failing review for "missing criteria" or "unclear intent," populating `docs/user-context/` is usually the fix.
 

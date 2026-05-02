@@ -19,8 +19,8 @@ Receive a one-sentence change request via `$ARGUMENTS`, dispatch the phase orche
 
 ### Files Read
 
-- `.pipeline/classification.json` — read after run-read-truth returns, to display the classification and support override edits.
-- `.pipeline/process-change-state.json` — read on every invocation for resume detection. If `status: "blocked"`, this is a Process Change resume — skip Read Truth and the classification gate.
+- `.strut-pipeline/classification.json` — read after run-read-truth returns, to display the classification and support override edits.
+- `.strut-pipeline/process-change-state.json` — read on every invocation for resume detection. If `status: "blocked"`, this is a Process Change resume — skip Read Truth and the classification gate.
 
 ### Other Inputs
 
@@ -36,8 +36,8 @@ None.
 
 When the human overrides a modifier at Step 4:
 
-- `.pipeline/classification.json` — modifiers, `execution_path`, and `evidence.trust_rule` / `evidence.decompose_rule` are updated in place. The `status` field stays `classified`.
-- `.pipeline/classification-log.md` — append-only. On override, append a new row with the same schema as the original, but prefix the path with `→` to mark the override. Never delete.
+- `.strut-pipeline/classification.json` — modifiers, `execution_path`, and `evidence.trust_rule` / `evidence.decompose_rule` are updated in place. The `status` field stays `classified`.
+- `.strut-pipeline/classification-log.md` — append-only. On override, append a new row with the same schema as the original, but prefix the path with `→` to mark the override. Never delete.
 
 ## Dispatch Sequence
 
@@ -72,9 +72,9 @@ If no errors, continue.
 
 ### Step 2: Resume detection
 
-**Step mode:** If `$ARGUMENTS` contains `--step`, strip it and run `touch .pipeline/step-mode`. If `--step` is absent, run `rm -f .pipeline/step-mode`. Step mode is per-invocation — re-invoking without `--step` disables it.
+**Step mode:** If `$ARGUMENTS` contains `--step`, strip it and run `touch .strut-pipeline/step-mode`. If `--step` is absent, run `rm -f .strut-pipeline/step-mode`. Step mode is per-invocation — re-invoking without `--step` disables it.
 
-Read `.pipeline/process-change-state.json` if it exists.
+Read `.strut-pipeline/process-change-state.json` if it exists.
 
 **If the file exists and `status == "blocked"`:** this is a Process Change resume.
 
@@ -85,7 +85,7 @@ Read `.pipeline/process-change-state.json` if it exists.
   - `gate == "pr_review"`: `Specify a gate response: merged, reject implementation <feedback>, reject spec <feedback>, or abort.`
   - `gate == "pr_rejection"`: `Specify a gate response: continue (to re-run with feedback) or abort.`
   - `gate == "step_pause"`: `Pipeline paused at step mode checkpoint. Specify a gate response: continue or abort.`
-  - Any other gate value: `Specify a gate response. See .pipeline/process-change-state.json for current state.`
+  - Any other gate value: `Specify a gate response. See .strut-pipeline/process-change-state.json for current state.`
   - Stop.
 - Print: `STRUT pipeline starting.\nResuming Process Change from [gate] gate.`
 - Go to Step 5 (dispatch run-process-change).
@@ -102,14 +102,14 @@ Call the run-read-truth skill via the Skill tool. Pass the change request as inp
 
 run-read-truth is a skill — it shares this context. It dispatches the scan and classify agents internally, checks their output files, and returns here when complete.
 
-When run-read-truth returns, check: does `.pipeline/classification.json` exist?
+When run-read-truth returns, check: does `.strut-pipeline/classification.json` exist?
 
 - **Yes:** Continue to Step 4.
 - **No:** run-read-truth should have reported the error. Stop.
 
 ### Step 4: Show classification and offer override
 
-Read `.pipeline/classification.json` and display:
+Read `.strut-pipeline/classification.json` and display:
 
 ```
 ─────────────────────────────────────
@@ -147,19 +147,19 @@ Then stop and wait for the human to respond. Do not continue until they respond.
 
 **If the human changes a modifier:**
 
-- Update `.pipeline/classification.json` with the new modifier values.
+- Update `.strut-pipeline/classification.json` with the new modifier values.
 - Recalculate `execution_path` from the updated modifiers using the mapping declared in `.claude/agents/truth-classify.md` (single source of truth).
 - Update the `trust_rule` or `decompose_rule` in `evidence` to note `Human override →`.
-- Append an override row to `.pipeline/classification-log.md` with the updated values. Use the same table format as the original row, but prefix the path with `→` to indicate override. Example: `| 2026-04-14 | Add a spinner | OFF | ON | → standard-decompose | none | 0 (ui) |`
+- Append an override row to `.strut-pipeline/classification-log.md` with the updated values. Use the same table format as the original row, but prefix the path with `→` to indicate override. Example: `| 2026-04-14 | Add a spinner | OFF | ON | → standard-decompose | none | 0 (ui) |`
 - Show the updated classification. Ask again (repeat Step 4 prompt).
 
 ### Step 5: Dispatch run-process-change
 
-Call the run-process-change skill via the Skill tool. No `args` needed — it reads pipeline state from `.pipeline/` and the human's gate response (on resume) from conversation context.
+Call the run-process-change skill via the Skill tool. No `args` needed — it reads pipeline state from `.strut-pipeline/` and the human's gate response (on resume) from conversation context.
 
 run-process-change is a skill — it shares this context. It dispatches sub-orchestrators and agents internally, manages gates, and returns here when complete or blocked.
 
-When run-process-change returns, read `.pipeline/process-change-state.json`:
+When run-process-change returns, read `.strut-pipeline/process-change-state.json`:
 
 - **`status == "blocked"`:** A gate was reached. run-process-change already printed the gate prompt. Print:
   ```
@@ -191,11 +191,11 @@ When run-process-change returns, read `.pipeline/process-change-state.json`:
 
 Say: `Process Change complete. PR merged. Starting Update Truth.`
 
-Call the run-update-truth skill via the Skill tool. No `args` needed — it reads pipeline state from `.pipeline/`.
+Call the run-update-truth skill via the Skill tool. No `args` needed — it reads pipeline state from `.strut-pipeline/`.
 
 run-update-truth is a skill — it shares this context. It dispatches update-capture, reads the result, presents proposals to the human, and returns here when complete.
 
-When run-update-truth returns, run `rm -f .pipeline/step-mode`. Say:
+When run-update-truth returns, run `rm -f .strut-pipeline/step-mode`. Say:
 
 ```
 Pipeline complete. Change merged and knowledge capture finished.
@@ -212,7 +212,7 @@ Read `examples.md` in this skill's directory for a worked override example (befo
 - Thinking "I should dispatch the scan agent directly to save a level of nesting"? Stop. run-strut calls phase orchestrators. Phase orchestrators dispatch agents. Two layers, no shortcuts.
 - Thinking "I should start writing the spec since I can see the classification"? Stop. Process Change is a separate phase with its own orchestrator.
 - Thinking "the classification looks wrong, I should re-run just the classify step"? Stop. Offer the human the override. If they want a re-run, they invoke `/run-strut` again.
-- Thinking "I should read the scan results to give better context for the override decision"? Stop. The classification summary has what the human needs. They can read `.pipeline/impact-scan.md` themselves if they want details.
+- Thinking "I should read the scan results to give better context for the override decision"? Stop. The classification summary has what the human needs. They can read `.strut-pipeline/impact-scan.md` themselves if they want details.
 - Thinking "run-process-change returned blocked, I should continue anyway"? Stop. Blocked means a human gate was reached. Print the pause message and exit. The human re-invokes when ready.
 - Thinking "I should parse the gate response myself before dispatching run-process-change"? Stop. run-process-change owns gate response parsing. Pass the conversation context through; do not interpret, validate, or reformat the human's gate response.
 - Thinking "the resume state looks stale, I should clear it and start fresh"? Stop. run-process-change handles new-run vs resume detection. It compares `what` fields. You do not intervene in that logic.
@@ -226,7 +226,7 @@ Read `examples.md` in this skill's directory for a worked override example (befo
 - Do not write specs, tests, or code.
 - Do not launch the Explore agent.
 - Do not dispatch agents directly. Phase orchestrators handle agent dispatch.
-- Do not delete `.pipeline/classification-log.md` — append-only per architecture.
-- Do not delete or modify `.pipeline/process-change-state.json` — run-process-change owns that file.
+- Do not delete `.strut-pipeline/classification-log.md` — append-only per architecture.
+- Do not delete or modify `.strut-pipeline/process-change-state.json` — run-process-change owns that file.
 - Do not parse or validate gate responses — run-process-change owns gate logic.
 - No retry budget. If a phase fails, the human re-invokes `/run-strut`.

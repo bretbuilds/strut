@@ -78,13 +78,13 @@ The spec is the central contract. spec-write produces it. Five agents consume it
 
 **must_never entries are folded into criteria as negative type.** Rather than a separate must_never array, each must_never becomes a criterion with `"type": "negative"` and a `"source"` field tracing it back to the intent. This means impl-write-tests treats all criteria uniformly — positive criteria get positive tests, negative criteria get negative tests. spec-review checks all criteria the same way. No special handling needed downstream.
 
-**implementation_notes are copied from the scan, not re-derived.** spec-write reads `.pipeline/truth-repo-impact-scan-result.json` and copies the relevant parts. This grounds the spec in actual codebase evidence rather than the spec agent inventing file paths.
+**implementation_notes are copied from the scan, not re-derived.** spec-write reads `.strut-pipeline/truth-repo-impact-scan-result.json` and copies the relevant parts. This grounds the spec in actual codebase evidence rather than the spec agent inventing file paths.
 
 **out_of_scope requires at least one entry.** Forces spec-write to think about boundaries. spec-review checks this.
 
 **tasks[] is always present, even for decompose OFF.** Decompose OFF = one task containing all criteria_ids. Decompose ON = up to 5 tasks, each with a subset. The schema is identical in both cases — only the count changes. This means impl-write-tests and run-implementation don't need to know whether decompose is ON or OFF — they iterate over tasks and process each one.
 
-**3-7 criteria total (unenforced — revisit once architecture is built).** The bounded spec concept comes from research (Stanford/UC Berkeley, referenced in `.claude/rules/methodology.md`) and the Curse of Instructions principle suggests fewer constraints improve compliance. The specific range 3-7 is a judgment call, not a research finding. Currently no agent enforces this — spec-write has no minimum or maximum, and spec-review doesn't reject based on count. Revisit whether this needs enforcement once real spec output is observed in practice, and if so, where (spec-write directive? spec-review check? neither?).
+**3-7 criteria total (unenforced — revisit once architecture is built).** The bounded spec concept comes from research (Stanford/UC Berkeley, referenced in `.claude/rules/strut-methodology.md`) and the Curse of Instructions principle suggests fewer constraints improve compliance. The specific range 3-7 is a judgment call, not a research finding. Currently no agent enforces this — spec-write has no minimum or maximum, and spec-review doesn't reject based on count. Revisit whether this needs enforcement once real spec output is observed in practice, and if so, where (spec-write directive? spec-review check? neither?).
 
 ---
 
@@ -92,7 +92,7 @@ The spec is the central contract. spec-write produces it. Five agents consume it
 
 ### The problem
 
-If a previous run left files in `.pipeline/spec-refinement/` or `.pipeline/implementation/`, a new run for a different change could read stale data.
+If a previous run left files in `.strut-pipeline/spec-refinement/` or `.strut-pipeline/implementation/`, a new run for a different change could read stale data.
 
 ### The decision
 
@@ -100,16 +100,16 @@ If a previous run left files in `.pipeline/spec-refinement/` or `.pipeline/imple
 
 Cleanup sequence for a new run:
 ```bash
-rm -rf .pipeline/spec-refinement .pipeline/implementation .pipeline/build-check .pipeline/update-truth
-rm -f .pipeline/process-change-state.json .pipeline/git-pr-result.json
-mkdir -p .pipeline/spec-refinement .pipeline/implementation/task-1 .pipeline/build-check .pipeline/update-truth
+rm -rf .strut-pipeline/spec-refinement .strut-pipeline/implementation .strut-pipeline/build-check .strut-pipeline/update-truth
+rm -f .strut-pipeline/process-change-state.json .strut-pipeline/git-pr-result.json
+mkdir -p .strut-pipeline/spec-refinement .strut-pipeline/implementation/task-1 .strut-pipeline/build-check .strut-pipeline/update-truth
 ```
 
 For a resume: skip cleanup, read state, pick up where you left off.
 
 **Read Truth already handles its own cleanup.** run-read-truth step 1 deletes its output files before starting. This stays unchanged.
 
-**Classification log is append-only.** `.pipeline/classification-log.md` is never deleted — it's the history of all classifications across runs.
+**Classification log is append-only.** `.strut-pipeline/classification-log.md` is never deleted — it's the history of all classifications across runs.
 
 ---
 
@@ -163,9 +163,9 @@ PR rejected. Where should the pipeline loop back?
 Feedback: [your feedback here]
 ```
 
-**If spec:** run-process-change writes feedback to `.pipeline/pr-rejection-feedback.json`, wipes implementation and build-check directories (the implementation was based on the old spec), and re-dispatches run-spec-refinement. spec-write reads the feedback file and revises. The spec cycle (write → review) runs again. After spec approval, implementation restarts from scratch against the new spec.
+**If spec:** run-process-change writes feedback to `.strut-pipeline/pr-rejection-feedback.json`, wipes implementation and build-check directories (the implementation was based on the old spec), and re-dispatches run-spec-refinement. spec-write reads the feedback file and revises. The spec cycle (write → review) runs again. After spec approval, implementation restarts from scratch against the new spec.
 
-**If implementation:** run-process-change writes feedback to `.pipeline/pr-rejection-feedback.json` and re-dispatches run-implementation. The impl-write-code agent reads the feedback alongside the existing spec and review chain results. This is the simpler path — same spec, revised code.
+**If implementation:** run-process-change writes feedback to `.strut-pipeline/pr-rejection-feedback.json` and re-dispatches run-implementation. The impl-write-code agent reads the feedback alongside the existing spec and review chain results. This is the simpler path — same spec, revised code.
 
 **If abort:** run-process-change writes `{ "status": "aborted" }` to process-change-state.json and stops.
 

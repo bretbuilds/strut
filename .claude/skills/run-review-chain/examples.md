@@ -2,7 +2,7 @@
 
 ## Aggregation: review-scope fails (fail-fast, criteria-eval skipped)
 
-review-scope writes `.pipeline/implementation/task-1/review-scope.json`:
+review-scope writes `.strut-pipeline/implementation/task-1/review-scope.json`:
 
 ```json
 {
@@ -116,7 +116,7 @@ Trust is ON (`classification.json.modifiers.trust` is `true`). review-scope retu
       "path": "app/actions/get-items.ts",
       "lines": "14-22",
       "issue": "Query joins through org_members without tenant scoping on org_members itself. RLS on items table does not protect against a pivot through unscoped org_members.",
-      "rule_violated": "security.md rule 2"
+      "rule_violated": "strut-security.md rule 2"
     }
   ],
   "summary": "Failed: 1 trust boundary violation(s)."
@@ -143,7 +143,7 @@ Aggregate into `review-chain-result.json`:
       "path": "app/actions/get-items.ts",
       "lines": "14-22",
       "issue": "Query joins through org_members without tenant scoping on org_members itself. RLS on items table does not protect against a pivot through unscoped org_members.",
-      "rule_violated": "security.md rule 2"
+      "rule_violated": "strut-security.md rule 2"
     }
   ],
   "summary": "Review chain failed at review-security. 1 security issue(s)."

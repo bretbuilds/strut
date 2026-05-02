@@ -26,22 +26,22 @@ If `$ARGUMENTS` is empty, not one of the three modes, or contains an unknown sec
 
 ### Files to Read — branch mode
 
-- `.pipeline/classification.json` — use `what` field to derive the branch slug.
+- `.strut-pipeline/classification.json` — use `what` field to derive the branch slug.
 
 ### Files to Read — commit mode
 
-- `.pipeline/spec-refinement/spec.json` — use `tasks[]` to find the active task's `description` for the commit message.
-- `.pipeline/implementation/task-1/impl-write-code-result.json` — use `files_modified[]`. Require `status: "passed"`.
-- `.pipeline/implementation/task-1/tests-result.json` — use `test_files[]`. Require `status: "passed"`.
-- `.pipeline/implementation/task-1/review-chain-result.json` — require `status: "passed"`. Confirms the review chain approved the code before commit.
+- `.strut-pipeline/spec-refinement/spec.json` — use `tasks[]` to find the active task's `description` for the commit message.
+- `.strut-pipeline/implementation/task-1/impl-write-code-result.json` — use `files_modified[]`. Require `status: "passed"`.
+- `.strut-pipeline/implementation/task-1/tests-result.json` — use `test_files[]`. Require `status: "passed"`.
+- `.strut-pipeline/implementation/task-1/review-chain-result.json` — require `status: "passed"`. Confirms the review chain approved the code before commit.
 
 For decompose ON, replace `task-1` with the active task id.
 
 ### Files to Read — pr mode
 
-- `.pipeline/spec-refinement/spec.json` — use `what`, `user_sees`, `criteria[]`, and `out_of_scope[]` to compose the PR title and body.
-- `.pipeline/classification.json` — use the trust/decompose modifier flags, surfaced in the PR body.
-- `.pipeline/impl-describe-flow.txt` — trust ON only. Include verbatim in the PR body if present.
+- `.strut-pipeline/spec-refinement/spec.json` — use `what`, `user_sees`, `criteria[]`, and `out_of_scope[]` to compose the PR title and body.
+- `.strut-pipeline/classification.json` — use the trust/decompose modifier flags, surfaced in the PR body.
+- `.strut-pipeline/impl-describe-flow.txt` — trust ON only. Include verbatim in the PR body if present.
 
 ## Output Contract
 
@@ -49,10 +49,10 @@ For decompose ON, replace `task-1` with the active task id.
 
 | Mode | Result file |
 |------|-------------|
-| branch | `.pipeline/implementation/git-branch-result.json` |
-| commit | `.pipeline/implementation/task-1/git-commit-result.json` (task id substituted for decompose ON) |
-| pr | `.pipeline/git-pr-result.json` |
-| invalid `$ARGUMENTS` | `.pipeline/implementation/git-mode-error.json` |
+| branch | `.strut-pipeline/implementation/git-branch-result.json` |
+| commit | `.strut-pipeline/implementation/task-1/git-commit-result.json` (task id substituted for decompose ON) |
+| pr | `.strut-pipeline/git-pr-result.json` |
+| invalid `$ARGUMENTS` | `.strut-pipeline/implementation/git-mode-error.json` |
 
 ### Result Schema — branch mode
 
@@ -128,13 +128,13 @@ No other status values. Orchestrators route on `status` and never read narrative
 
 ### Mode dispatch
 
-1. Parse `$ARGUMENTS`. Extract the first token as `mode`. Extract the second token as `task_id` when present (commit mode only). If `mode` is not one of `branch`, `commit`, `pr`, write `.pipeline/implementation/git-mode-error.json` with `{"skill":"git-tool","status":"failed","summary":"invalid or missing mode argument: <received>"}` and stop. Do NOT ask for clarification. Do NOT attempt to infer the mode from pipeline state.
+1. Parse `$ARGUMENTS`. Extract the first token as `mode`. Extract the second token as `task_id` when present (commit mode only). If `mode` is not one of `branch`, `commit`, `pr`, write `.strut-pipeline/implementation/git-mode-error.json` with `{"skill":"git-tool","status":"failed","summary":"invalid or missing mode argument: <received>"}` and stop. Do NOT ask for clarification. Do NOT attempt to infer the mode from pipeline state.
 2. Dispatch to the mode-specific algorithm below.
 
 ### Branch mode
 
-1. Run `mkdir -p .pipeline/implementation`. Run `rm -f .pipeline/implementation/git-branch-result.json`.
-2. Read `.pipeline/classification.json`. If missing, malformed, or `what` is empty, write `failed` result naming the specific problem, then stop.
+1. Run `mkdir -p .strut-pipeline/implementation`. Run `rm -f .strut-pipeline/implementation/git-branch-result.json`.
+2. Read `.strut-pipeline/classification.json`. If missing, malformed, or `what` is empty, write `failed` result naming the specific problem, then stop.
 3. Derive the branch slug from `classification.json.what`: lowercase, non-alphanumeric → hyphen, collapse consecutive hyphens, trim leading/trailing hyphens, truncate to 50 characters. Prefix with `feature/`. If the resulting slug is empty after trimming, write `failed` and stop.
 4. Run `git rev-parse --verify --quiet refs/heads/<branch_name>`. If it returns 0, the branch already exists — check it out with `git checkout <branch_name>`, write `status: "exists"` with the existing branch name, stop.
 5. Verify the current working tree is clean: `git status --porcelain`. If output is non-empty, write `failed` with a summary naming the dirty paths, stop.
@@ -144,8 +144,8 @@ No other status values. Orchestrators route on `status` and never read narrative
 
 ### Commit mode
 
-1. Resolve `task_id` (from `$ARGUMENTS` if present, else `task-1`). Run `mkdir -p .pipeline/implementation/<task_id>`. Run `rm -f .pipeline/implementation/<task_id>/git-commit-result.json`.
-2. Read `.pipeline/implementation/<task_id>/impl-write-code-result.json`, `.pipeline/implementation/<task_id>/tests-result.json`, `.pipeline/implementation/<task_id>/review-chain-result.json`, and `.pipeline/spec-refinement/spec.json`. If any is missing or malformed, or if any of the three result files does not have `status: "passed"`, write `failed` result naming the specific problem (which file, what was wrong), then stop.
+1. Resolve `task_id` (from `$ARGUMENTS` if present, else `task-1`). Run `mkdir -p .strut-pipeline/implementation/<task_id>`. Run `rm -f .strut-pipeline/implementation/<task_id>/git-commit-result.json`.
+2. Read `.strut-pipeline/implementation/<task_id>/impl-write-code-result.json`, `.strut-pipeline/implementation/<task_id>/tests-result.json`, `.strut-pipeline/implementation/<task_id>/review-chain-result.json`, and `.strut-pipeline/spec-refinement/spec.json`. If any is missing or malformed, or if any of the three result files does not have `status: "passed"`, write `failed` result naming the specific problem (which file, what was wrong), then stop.
 3. Locate the task in `spec.json.tasks[]` matching `task_id`. If not found, write `failed`, stop.
 4. Verify the branch state: `git symbolic-ref --short HEAD` must start with `feature/`. If not, write `failed` with the current ref, stop.
 5. Assemble the file list as the union of `impl-write-code-result.json.files_modified` and `tests-result.json.test_files`. Stage only those paths: `git add <path>` for each. Do NOT use `git add -A` or `git add .`.
@@ -158,9 +158,9 @@ No other status values. Orchestrators route on `status` and never read narrative
 
 ### PR mode
 
-1. Run `rm -f .pipeline/git-pr-result.json`.
-2. Read `.pipeline/spec-refinement/spec.json` and `.pipeline/classification.json`. If either is missing or malformed, write `failed` result naming the specific problem, then stop.
-3. Check for `.pipeline/impl-describe-flow.txt`. Load as `describe_flow` if present; otherwise `describe_flow` is none.
+1. Run `rm -f .strut-pipeline/git-pr-result.json`.
+2. Read `.strut-pipeline/spec-refinement/spec.json` and `.strut-pipeline/classification.json`. If either is missing or malformed, write `failed` result naming the specific problem, then stop.
+3. Check for `.strut-pipeline/impl-describe-flow.txt`. Load as `describe_flow` if present; otherwise `describe_flow` is none.
 4. Verify the branch state: current ref starts with `feature/`. Working tree clean (`git status --porcelain` empty). If either fails, write `failed`, stop.
 5. Push the branch: `git push -u origin <branch_name>`. If it fails, write `failed` with the error, stop.
 6. Compose the PR title: `spec.json.what` truncated to 70 characters.
@@ -183,7 +183,7 @@ No other status values. Orchestrators route on `status` and never read narrative
 - Thinking "main is ahead and has conflicts — I'll rebase / merge / force-push"? Stop. Branch mode only runs `git pull --ff-only`. If it cannot fast-forward, write `failed` and stop.
 - Thinking "the PR body is long — I'll summarize the criteria instead of listing them all"? Stop. Every criterion goes in the body verbatim. The human reads them at the PR gate.
 - Thinking "I should amend the last commit to include this small fix"? Stop. `--amend` is forbidden. Each commit is append-only.
-- Thinking "no valid mode was passed, I'll infer it from the state of `.pipeline/`"? Stop. Missing or invalid `$ARGUMENTS` is a dispatch error. Write the mode-error result and stop. Do not guess.
+- Thinking "no valid mode was passed, I'll infer it from the state of `.strut-pipeline/`"? Stop. Missing or invalid `$ARGUMENTS` is a dispatch error. Write the mode-error result and stop. Do not guess.
 - Thinking "the input is ambiguous, I should ask the user what they meant"? Stop. Every input case has deterministic handling: valid → execute; missing/malformed/unknown → write the result file with `status: "failed"` and a summary.
 - Thinking "this input is broken, I'll just exit without writing"? Stop. Write the result file with the appropriate failure status before exiting. The orchestrator reads the result file to route.
 
@@ -192,7 +192,7 @@ No other status values. Orchestrators route on `status` and never read narrative
 - Do not dispatch other agents.
 - Read only files declared in the Input Contract for the active mode.
 - Write only the mode-specific result file.
-- Do not modify source files, test files, or any files outside `.pipeline/`.
+- Do not modify source files, test files, or any files outside `.strut-pipeline/`.
 - Do not use `git add -A`, `git add .`, `git reset --hard`, `git push --force`, `git checkout --`, `git clean`, `git branch -D`, `git commit --amend`, `--no-verify`, or `--no-gpg-sign`.
 - Do not merge PRs. Merge is a human action at the PR review gate.
 - Do not close or comment on GitHub issues.

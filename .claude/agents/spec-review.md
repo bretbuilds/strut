@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Spec Refinement. Dispatched by run-spec-refinement. No access to upstream reasoning from derive-intent or spec-write.
 
-Assess `.pipeline/spec-refinement/spec.json` for quality and testability. Produce `.pipeline/spec-refinement/spec-review.json` with structured feedback that spec-write can act on in a single revision pass.
+Assess `.strut-pipeline/spec-refinement/spec.json` for quality and testability. Produce `.strut-pipeline/spec-refinement/spec-review.json` with structured feedback that spec-write can act on in a single revision pass.
 
 Do not write the spec. Do not derive intent. Do not scan the codebase. Read one file (spec.json) and judge whether downstream agents can work with it.
 
@@ -20,7 +20,7 @@ Quality and testability are independent assessments, so check them in two phases
 
 ### Files to Read
 
-- `.pipeline/spec-refinement/spec.json` — the spec to review. This is the only input.
+- `.strut-pipeline/spec-refinement/spec.json` — the spec to review. This is the only input.
 
 ### Other Inputs
 
@@ -30,7 +30,7 @@ None. No `$ARGUMENTS`. No upstream files beyond spec.json. This isolation preven
 
 ### Result File
 
-`.pipeline/spec-refinement/spec-review.json`
+`.strut-pipeline/spec-refinement/spec-review.json`
 
 run-spec-refinement consumes this for routing. On failure, run-spec-refinement passes it to spec-write as feedback for revision.
 
@@ -106,8 +106,8 @@ No other status values.
 
 ## Algorithm
 
-1. `rm -f .pipeline/spec-refinement/spec-review.json`
-2. Read `.pipeline/spec-refinement/spec.json`. If missing or malformed, write `failed` result with a `review_issues` entry describing the problem and stop.
+1. `rm -f .strut-pipeline/spec-refinement/spec-review.json`
+2. Read `.strut-pipeline/spec-refinement/spec.json`. If missing or malformed, write `failed` result with a `review_issues` entry describing the problem and stop.
 3. Execute Phase 1 — Spec Quality:
    - Skip `what` and `user_sees` during review. These fields are echoed verbatim from upstream files (`classification.json` and `intent.json` respectively) and cannot be modified by spec-write. If they appear inconsistent with criteria, flag the criteria, not the upstream-locked fields.
    - For each criterion: is the given/when/then unambiguous? Could two people read it and write different tests? Common ambiguity patterns: vague verbs ("handles correctly," "works properly," "updates appropriately"), missing quantities ("responds quickly" — no threshold), undefined terms, missing actors ("the data is validated" — by whom? client? server? database constraint?).
@@ -125,10 +125,10 @@ No other status values.
 ## Boundary Constraints
 
 - Do not dispatch other agents.
-- Read only `.pipeline/spec-refinement/spec.json`. No other files.
-- Write only `.pipeline/spec-refinement/spec-review.json`.
+- Read only `.strut-pipeline/spec-refinement/spec.json`. No other files.
+- Write only `.strut-pipeline/spec-refinement/spec-review.json`.
 - Do not edit the spec. Do not re-derive intent. Do not scan the codebase — `Grep` and `Glob` are not granted.
-- Use `Bash` only for `rm -f .pipeline/spec-refinement/spec-review.json`.
+- Use `Bash` only for `rm -f .strut-pipeline/spec-refinement/spec-review.json`.
 - Do not pause for human input. Assess, write, exit.
 
 ## Explore Ban

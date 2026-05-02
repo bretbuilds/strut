@@ -1,7 +1,7 @@
 #!/bin/bash
 # test-harness.sh — Shared test harness for STRUT skills and agents.
 #
-# Sourced by generated test scripts at .pipeline/test-<component>.sh.
+# Sourced by generated test scripts at .strut-pipeline/test-<component>.sh.
 # Provides agent dispatch (invoke_agent), fixture setup (setup_clean),
 # assertion helpers (assert_*), result reporting (print_results,
 # save_results), and cleanup.
@@ -16,9 +16,9 @@
 #   COMPONENT="spec-write"
 #
 #   setup_clean
-#   LAST_OUTPUT=".pipeline/test-case-1-output.txt"
+#   LAST_OUTPUT=".strut-pipeline/test-case-1-output.txt"
 #   invoke_agent "$COMPONENT"
-#   assert_file_exists .pipeline/spec-refinement/spec.json "Case 1"
+#   assert_file_exists .strut-pipeline/spec-refinement/spec.json "Case 1"
 #   ...
 #   print_results
 #   save_results
@@ -53,7 +53,7 @@ log_info() {
 # ── Fixture setup ────────────────────────────────────────────────────────────
 
 # Scratch paths the harness should also scrub between tests. Use when the
-# component under test writes files outside .pipeline/ (e.g., impl-write-tests
+# component under test writes files outside .strut-pipeline/ (e.g., impl-write-tests
 # writes actual test files into the project's source tree). Cleanup is git-aware
 # — tracked files are left alone; only untracked and ignored files are removed.
 # Test scripts register paths with register_scratch_path before running tests.
@@ -66,7 +66,7 @@ register_scratch_path() {
 # untracked files under any registered scratch paths so one test's artifacts
 # cannot be reused by a later test.
 setup_clean() {
-  find .pipeline -mindepth 1 -not -name "test-${COMPONENT}.sh" -delete 2>/dev/null
+  find .strut-pipeline -mindepth 1 -not -name "test-${COMPONENT}.sh" -delete 2>/dev/null
   local scratch_msg=""
   if [ ${#SCRATCH_PATHS[@]} -gt 0 ] && command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
     for path in "${SCRATCH_PATHS[@]}"; do
@@ -76,7 +76,7 @@ setup_clean() {
     done
     scratch_msg=" and scratch paths (${SCRATCH_PATHS[*]})"
   fi
-  log_info "Cleaned .pipeline/${scratch_msg}"
+  log_info "Cleaned .strut-pipeline/${scratch_msg}"
 }
 
 # ── Component dispatch ───────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ setup_clean() {
 # tests. Generated test scripts MUST use this function, not define their own.
 #
 # Usage:
-#   LAST_OUTPUT=".pipeline/my-test-output.txt"
+#   LAST_OUTPUT=".strut-pipeline/my-test-output.txt"
 #   invoke_agent <component-name>              # default prompt "run"
 #   invoke_agent <component-name> "<prompt>"   # custom prompt
 #
@@ -236,7 +236,7 @@ print_results() {
 
   if [ $FAIL -gt 0 ]; then
     echo -e "\n${RED}COMPONENT NOT READY — failures require investigation${NC}"
-    echo -e "Test artifacts preserved in .pipeline/ for debugging"
+    echo -e "Test artifacts preserved in .strut-pipeline/ for debugging"
   else
     echo -e "\n${GREEN}ALL TESTS PASSED${NC}"
   fi
@@ -247,7 +247,7 @@ print_results() {
 cleanup() {
   if [ $FAIL -eq 0 ]; then
     log_info "All tests passed — cleaning fixture files (preserving test script)"
-    find .pipeline -mindepth 1 -not -name "test-${COMPONENT}.sh" -delete 2>/dev/null
+    find .strut-pipeline -mindepth 1 -not -name "test-${COMPONENT}.sh" -delete 2>/dev/null
     if [ ${#SCRATCH_PATHS[@]} -gt 0 ] && command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
       for path in "${SCRATCH_PATHS[@]}"; do
         if [ -e "$path" ]; then
@@ -258,8 +258,8 @@ cleanup() {
     echo -e "${GREEN}Fixture artifacts cleaned up${NC}"
   else
     log_info "Failures detected — preserving test artifacts for debugging"
-    log_info "Fixture files and results in .pipeline/"
-    log_info "Test script at .pipeline/test-${COMPONENT}.sh"
+    log_info "Fixture files and results in .strut-pipeline/"
+    log_info "Test script at .strut-pipeline/test-${COMPONENT}.sh"
     echo ""
     echo "After fixing the component in a separate session, re-run:"
     echo "  bash docs/contributing/testing/run-tests.sh ${COMPONENT}"

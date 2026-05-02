@@ -20,7 +20,7 @@
 
 ## Input Contract
 ### Files Read
-- `.pipeline/[filename]` — [what it contains, why this skill needs it]
+- `.strut-pipeline/[filename]` — [what it contains, why this skill needs it]
 - `classification.json` — [if this skill's behavior varies by modifier]
 
 ### Modifier Behavior
@@ -42,10 +42,10 @@
      - for decompose ON: completed_tasks[] and remaining_tasks[]
      Skills without pause points (like run-strut or pure sub-orchestrators) don't need one. -->
 
-- `.pipeline/[skill-name]-state.json` — written at each pause point for resumption
+- `.strut-pipeline/[skill-name]-state.json` — written at each pause point for resumption
 
 ### Result File
-- `.pipeline/[skill-name]-result.json`
+- `.strut-pipeline/[skill-name]-result.json`
 
 ### Result Schema
 ```json
@@ -72,7 +72,7 @@
 [Numbered sequential steps. Each step is a dispatch + status-check + routing decision. Not reasoning — orchestration.]
 
 1. [dispatch X]
-2. Read `.pipeline/[X-result].json` — if `status: failed`, write result file with `status: failed`, return
+2. Read `.strut-pipeline/[X-result].json` — if `status: failed`, write result file with `status: failed`, return
 3. [dispatch Y]
 4. ...
 
@@ -142,7 +142,7 @@ Determine which type, then write accordingly.
 
 ### What makes skills actually work
 
-- **`rm -f` before writing any `.pipeline/` file** prevents reading stale state from previous runs.
+- **`rm -f` before writing any `.strut-pipeline/` file** prevents reading stale state from previous runs.
 - **Anti-rationalization blocks ("Thinking X? Stop.")** prevent more failures than polite instructions. Use direct interception, not polite phrasing. Add only when you observe the failure — each one is an expensive condition constraint.
 - **Numbered algorithm steps prevent models from substituting their own logic.** Prose descriptions get reinterpreted.
 - **Failure actions must say "stop and wait," not "ask how to proceed."** The latter produces bypass options.
@@ -162,7 +162,7 @@ Design for how the skill gets invoked:
 
 - **`$ARGUMENTS`** — manual invocation (user types `/skill-name some input`)
 - **Conversation context** — pipeline handoff (orchestrator provides context before dispatch)
-- **File-based input** — isolated-context skills that read `.pipeline/` files, no conversation dependency
+- **File-based input** — isolated-context skills that read `.strut-pipeline/` files, no conversation dependency
 
 Most pipeline skills need file-based input. Manual-only skills can use `$ARGUMENTS`.
 

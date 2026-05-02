@@ -1,7 +1,7 @@
 #!/bin/bash
 # run-tests.sh — Single entry point for testing a skill or agent.
 #
-# If no test script exists at .pipeline/test-<component>.sh, generates one
+# If no test script exists at .strut-pipeline/test-<component>.sh, generates one
 # by invoking Claude with the component file + test-categories.md as input.
 # Either way, runs the test script under both Sonnet and Opus, saves
 # per-model results to docs/contributing/testing/results/, and prints a comparison summary.
@@ -59,7 +59,7 @@ else
   exit 1
 fi
 
-TEST_SCRIPT=".pipeline/test-${COMPONENT}.sh"
+TEST_SCRIPT=".strut-pipeline/test-${COMPONENT}.sh"
 CATEGORIES_FILE="docs/contributing/testing/test-categories.md"
 HARNESS_FILE="docs/contributing/testing/test-harness.sh"
 RESULTS_DIR="docs/contributing/testing/results"

@@ -10,7 +10,7 @@ effort: max
 
 Update Truth phase. Dispatched by run-update-truth. Never writes directly to rules files — proposals go through human review.
 
-Read the completed pipeline state (diff, spec, review chain results, build results, rules_gaps from the scan) and propose updates to the project's knowledge substrate: decision log, system map, and rules files. Write `.pipeline/update-truth/knowledge-proposals.json` with structured proposals for human review.
+Read the completed pipeline state (diff, spec, review chain results, build results, rules_gaps from the scan) and propose updates to the project's knowledge substrate: decision log, system map, and rules files. Write `.strut-pipeline/update-truth/knowledge-proposals.json` with structured proposals for human review.
 
 Do not write to `.claude/rules/` directly. Do not edit existing decision log entries. Do not edit source code, test files, or pipeline configuration. Propose; the human applies.
 
@@ -20,17 +20,17 @@ Do not write to `.claude/rules/` directly. Do not edit existing decision log ent
 
 Always:
 
-- `.pipeline/spec-refinement/spec.json` — use `what`, `criteria[]`, `implementation_notes`, and `out_of_scope[]` to understand what was intended.
-- `.pipeline/classification.json` — use `modifiers` (trust, decompose), `execution_path`, and `what_breaks` to understand the change's risk profile.
-- `.pipeline/truth-repo-impact-scan-result.json` — use `rules_gaps[]` for gaps in the rules substrate that the scan detected. These are the self-improving rules cycle inputs.
+- `.strut-pipeline/spec-refinement/spec.json` — use `what`, `criteria[]`, `implementation_notes`, and `out_of_scope[]` to understand what was intended.
+- `.strut-pipeline/classification.json` — use `modifiers` (trust, decompose), `execution_path`, and `what_breaks` to understand the change's risk profile.
+- `.strut-pipeline/truth-repo-impact-scan-result.json` — use `rules_gaps[]` for gaps in the rules substrate that the scan detected. These are the self-improving rules cycle inputs.
 
 On demand (read only if they exist):
 
-- `.pipeline/spec-refinement/spec-review.json` — use `review_issues[]` and `validation_issues[]` to detect spec cycle friction (multiple iterations indicate unclear intent or missing patterns).
-- `.pipeline/implementation/task-1/impl-write-code-result.json` — use `follow_up[]` for out-of-scope observations the implementer noted but did not act on (bugs in adjacent code, duplicated patterns, missing edge cases). These are additional signal for proposal generation — treat them like `rules_gaps` inputs, subject to the same 30-minute rule and ≤5 cap.
-- `.pipeline/implementation/task-1/review-chain-result.json` — use `status` and, if `failed` entries exist in the chain's history, note what the review chain caught. Retries indicate implementation patterns worth capturing.
-- `.pipeline/build-check/build-result.json` — use `cleanups_run` to detect build friction. If `cleanups_run > 0`, build-error-cleanup was needed — the error pattern may warrant a rule.
-- `.pipeline/build-check/build-error-cleanup.json` — if it exists, use `stages_fixed[]` and `files_modified[]` to understand what class of build error occurred.
+- `.strut-pipeline/spec-refinement/spec-review.json` — use `review_issues[]` and `validation_issues[]` to detect spec cycle friction (multiple iterations indicate unclear intent or missing patterns).
+- `.strut-pipeline/implementation/task-1/impl-write-code-result.json` — use `follow_up[]` for out-of-scope observations the implementer noted but did not act on (bugs in adjacent code, duplicated patterns, missing edge cases). These are additional signal for proposal generation — treat them like `rules_gaps` inputs, subject to the same 30-minute rule and ≤5 cap.
+- `.strut-pipeline/implementation/task-1/review-chain-result.json` — use `status` and, if `failed` entries exist in the chain's history, note what the review chain caught. Retries indicate implementation patterns worth capturing.
+- `.strut-pipeline/build-check/build-result.json` — use `cleanups_run` to detect build friction. If `cleanups_run > 0`, build-error-cleanup was needed — the error pattern may warrant a rule.
+- `.strut-pipeline/build-check/build-error-cleanup.json` — if it exists, use `stages_fixed[]` and `files_modified[]` to understand what class of build error occurred.
 
 For the diff:
 
@@ -44,7 +44,7 @@ None. No `$ARGUMENTS`. All input comes from pipeline files and the git diff.
 
 ### Result File
 
-`.pipeline/update-truth/knowledge-proposals.json`
+`.strut-pipeline/update-truth/knowledge-proposals.json`
 
 ### Result Schema
 
@@ -68,7 +68,7 @@ None. No `$ARGUMENTS`. All input comes from pipeline files and the git diff.
     ],
     "rules": [
       {
-        "target_file": ".claude/rules/security.md",
+        "target_file": ".claude/rules/strut-security.md",
         "proposed_rule": "Exact text of the proposed rule, numbered to continue the existing sequence.",
         "reason": "Why this rule is needed — tied to the merged change or the gap being closed.",
         "source": "rules_gaps | review_finding | build_friction | observed_pattern"
@@ -107,23 +107,23 @@ No other status values.
 
 ## Algorithm
 
-1. Run `rm -f .pipeline/update-truth/knowledge-proposals.json` and `mkdir -p .pipeline/update-truth` via Bash. These are unconditional — always execute them first.
+1. Run `rm -f .strut-pipeline/update-truth/knowledge-proposals.json` and `mkdir -p .strut-pipeline/update-truth` via Bash. These are unconditional — always execute them first.
 
-2. Read `.pipeline/classification.json`. If missing or malformed, write `failed` result with reason and stop. Extract `modifiers.trust`, `execution_path`, and `what_breaks`.
+2. Read `.strut-pipeline/classification.json`. If missing or malformed, write `failed` result with reason and stop. Extract `modifiers.trust`, `execution_path`, and `what_breaks`.
 
-3. Read `.pipeline/spec-refinement/spec.json`. If missing or malformed, write `failed` result with reason and stop.
+3. Read `.strut-pipeline/spec-refinement/spec.json`. If missing or malformed, write `failed` result with reason and stop.
 
-4. Read `.pipeline/truth-repo-impact-scan-result.json`. If missing, proceed without rules_gaps (note in summary). Extract `rules_gaps[]` if present.
+4. Read `.strut-pipeline/truth-repo-impact-scan-result.json`. If missing, proceed without rules_gaps (note in summary). Extract `rules_gaps[]` if present.
 
 5. Run `git diff main...HEAD` to capture the diff. If the diff is empty, write `passed` with empty proposals and summary "no diff detected — nothing to capture" and stop.
 
 6. Read optional upstream files if they exist:
-   - `.pipeline/spec-refinement/spec-review.json`
-   - `.pipeline/implementation/task-1/impl-write-code-result.json` — extract `follow_up[]` if present and non-empty.
-   - `.pipeline/implementation/task-1/review-chain-result.json`
-   - `.pipeline/implementation/task-1/review-security.json` — trust ON only. Raw security review findings for root_cause analysis.
-   - `.pipeline/build-check/build-result.json`
-   - `.pipeline/build-check/build-error-cleanup.json`
+   - `.strut-pipeline/spec-refinement/spec-review.json`
+   - `.strut-pipeline/implementation/task-1/impl-write-code-result.json` — extract `follow_up[]` if present and non-empty.
+   - `.strut-pipeline/implementation/task-1/review-chain-result.json`
+   - `.strut-pipeline/implementation/task-1/review-security.json` — trust ON only. Raw security review findings for root_cause analysis.
+   - `.strut-pipeline/build-check/build-result.json`
+   - `.strut-pipeline/build-check/build-error-cleanup.json`
 
 7. Detect process friction. Check each source independently:
    - **spec_cycle**: Does `spec-review.json` exist with `status: "failed"`? If so, the spec cycle iterated — record the friction.
@@ -143,7 +143,7 @@ No other status values.
 
 10. Sanity check: count total proposals across all categories (excluding process_friction). The hard cap is ≤5. If over 5, prune in priority order — cut decision_log entries first, then system_map entries, then non-`rules_gaps` rules entries, then `rules_gaps`-sourced rules entries (least relevant first). The cap of 5 is absolute — it applies even to `rules_gaps`-sourced proposals. When pruning `rules_gaps` entries, keep the ones most likely to prevent future harm and drop the rest. Over-capturing dilutes the knowledge substrate.
 
-11. Write `.pipeline/update-truth/knowledge-proposals.json` with the complete result. Write the file even if all proposal arrays are empty — an empty proposals object is a valid outcome. Stop after writing.
+11. Write `.strut-pipeline/update-truth/knowledge-proposals.json` with the complete result. Write the file even if all proposal arrays are empty — an empty proposals object is a valid outcome. Stop after writing.
 
 ## Anti-Rationalization Rules
 
@@ -162,11 +162,11 @@ No other status values.
 
 - Do not dispatch other agents.
 - Read only pipeline files listed in Input Contract and `git diff main...HEAD`. No codebase exploration beyond the diff.
-- Write only `.pipeline/update-truth/knowledge-proposals.json`. No other writes.
+- Write only `.strut-pipeline/update-truth/knowledge-proposals.json`. No other writes.
 - Do not write to `.claude/rules/` — proposals only, human applies.
 - Do not write to `docs/decisions.md` or `docs/system-map.md` — proposals only, human applies.
 - Do not edit source files, test files, or any other file.
-- Do not modify any file in `.pipeline/` other than the result file.
+- Do not modify any file in `.strut-pipeline/` other than the result file.
 - Use `Bash` for: `rm -f` of the result file, `mkdir -p`, and `git diff main...HEAD`. No other shell use.
 - `Grep` and `Glob` are not granted. No codebase-wide search.
 - Do not pause for human input. Analyze, write proposals, exit.

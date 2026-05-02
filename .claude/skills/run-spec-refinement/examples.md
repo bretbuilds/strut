@@ -52,8 +52,8 @@ On iteration 2+, spec-write's input contract has two feedback-relevant files:
 
 | File | What spec-write does with it |
 |------|------------------------------|
-| `.pipeline/spec-refinement/spec.json` | Reads the existing spec. Preserves everything not flagged by feedback. |
-| `.pipeline/spec-refinement/spec-review.json` | Reads `review_issues[]` and `validation_issues[]`. Addresses every issue in one revision pass. |
+| `.strut-pipeline/spec-refinement/spec.json` | Reads the existing spec. Preserves everything not flagged by feedback. |
+| `.strut-pipeline/spec-refinement/spec-review.json` | Reads `review_issues[]` and `validation_issues[]`. Addresses every issue in one revision pass. |
 
 spec-write does NOT re-read `intent.json` or the scan results on revision — those were consumed on the first draft. The revision is scoped to the review feedback.
 
@@ -62,7 +62,7 @@ spec-write does NOT re-read `intent.json` or the scan results on revision — th
 If spec-review returns `status: "failed"` on iteration 5, the orchestrator says:
 
 ```
-Spec cycle exhausted (5 iterations). Last review feedback in .pipeline/spec-refinement/spec-review.json. Escalating to human.
+Spec cycle exhausted (5 iterations). Last review feedback in .strut-pipeline/spec-refinement/spec-review.json. Escalating to human.
 ```
 
 And stops. run-process-change receives the failure and writes `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`.

@@ -23,14 +23,14 @@ This is the largest orchestrator — it owns both human gates and the rejection-
 
 ### Files Read (for routing only)
 
-- `.pipeline/classification.json` — routing source of truth. `what` is compared against any prior state's `what` to decide new-run vs resume. `modifiers.trust` is read to conditionally dispatch impl-describe-flow (Step 9). `modifiers.decompose` is read for the task 1 gate routing (Step 7b).
-- `.pipeline/process-change-state.json` — phase-level resume state. Read on every invocation to decide whether to start fresh or resume.
-- `.pipeline/spec-refinement/spec-review.json` — status check after run-spec-refinement.
-- `.pipeline/spec-refinement/spec.json` — existence check (used for the spec approval gate prompt display and for `what` reference in state writes).
-- `.pipeline/implementation/implementation-status.json` — status check after run-implementation.
-- `.pipeline/build-check/build-result.json` — status check after run-build-check.
-- `.pipeline/impl-describe-flow.txt` — existence check after impl-describe-flow (trust ON only).
-- `.pipeline/git-pr-result.json` — status check after git-tool (pr).
+- `.strut-pipeline/classification.json` — routing source of truth. `what` is compared against any prior state's `what` to decide new-run vs resume. `modifiers.trust` is read to conditionally dispatch impl-describe-flow (Step 9). `modifiers.decompose` is read for the task 1 gate routing (Step 7b).
+- `.strut-pipeline/process-change-state.json` — phase-level resume state. Read on every invocation to decide whether to start fresh or resume.
+- `.strut-pipeline/spec-refinement/spec-review.json` — status check after run-spec-refinement.
+- `.strut-pipeline/spec-refinement/spec.json` — existence check (used for the spec approval gate prompt display and for `what` reference in state writes).
+- `.strut-pipeline/implementation/implementation-status.json` — status check after run-implementation.
+- `.strut-pipeline/build-check/build-result.json` — status check after run-build-check.
+- `.strut-pipeline/impl-describe-flow.txt` — existence check after impl-describe-flow (trust ON only).
+- `.strut-pipeline/git-pr-result.json` — status check after git-tool (pr).
 
 ### Other Inputs
 
@@ -39,7 +39,7 @@ This is the largest orchestrator — it owns both human gates and the rejection-
 
 ### Prerequisite Files
 
-- `.pipeline/classification.json` must exist with `status: "classified"`. Produced by Read Truth.
+- `.strut-pipeline/classification.json` must exist with `status: "classified"`. Produced by Read Truth.
 
 If missing or malformed, overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming the specific problem. Stop.
 
@@ -47,7 +47,7 @@ If missing or malformed, overwrite `process-change-state.json` with `status: "fa
 
 ### Result File
 
-- `.pipeline/process-change-state.json`
+- `.strut-pipeline/process-change-state.json`
 
 Written on every gate pause, every resume decision, and every terminal outcome. The single file run-strut reads to decide what to do next and the single file read on re-invocation to resume.
 
@@ -179,18 +179,18 @@ No other status values.
 ### Step 1: Setup
 
 ```bash
-mkdir -p .pipeline
+mkdir -p .strut-pipeline
 ```
 
-Do not `rm -f .pipeline/process-change-state.json` here — the resume branch in Step 2 must read it. Step 3 owns cleanup for the new-run branch.
+Do not `rm -f .strut-pipeline/process-change-state.json` here — the resume branch in Step 2 must read it. Step 3 owns cleanup for the new-run branch.
 
 ### Step 2: Verify prerequisites and detect new-run vs resume
 
-Check `.pipeline/classification.json` exists and is parseable JSON with `status: "classified"` and a non-empty `what`. If missing or malformed, overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming the problem. Stop.
+Check `.strut-pipeline/classification.json` exists and is parseable JSON with `status: "classified"` and a non-empty `what`. If missing or malformed, overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming the problem. Stop.
 
 Read `classification.json.what` → `current_what`. Read `classification.json.modifiers.trust` → `trust_on` (boolean).
 
-Check `.pipeline/process-change-state.json` — if the only content is the Step 1 placeholder (or the file is missing prior to Step 1's write), treat as new run. Otherwise, read its `what` field → `prior_what`.
+Check `.strut-pipeline/process-change-state.json` — if the only content is the Step 1 placeholder (or the file is missing prior to Step 1's write), treat as new run. Otherwise, read its `what` field → `prior_what`.
 
 - If `prior_what` is missing, `"unknown"`, or does not match `current_what` → this is a **new run**. Go to Step 3.
 - If `prior_what == current_what` → this is a **resume**. Read `status`, `gate`, `completed`, and `next`. Go to Step 4.
@@ -200,20 +200,20 @@ Check `.pipeline/process-change-state.json` — if the only content is the Step 
 Remove transient Process Change state. Do not remove Read Truth outputs or classification-log.md.
 
 ```bash
-rm -rf .pipeline/spec-refinement
-rm -rf .pipeline/implementation
-rm -rf .pipeline/build-check
-rm -f .pipeline/git-pr-result.json
-rm -f .pipeline/impl-describe-flow.txt
-rm -f .pipeline/pr-rejection-feedback.json
+rm -rf .strut-pipeline/spec-refinement
+rm -rf .strut-pipeline/implementation
+rm -rf .strut-pipeline/build-check
+rm -f .strut-pipeline/git-pr-result.json
+rm -f .strut-pipeline/impl-describe-flow.txt
+rm -f .strut-pipeline/pr-rejection-feedback.json
 ```
 
 Do not remove:
-- `.pipeline/classification.json`
-- `.pipeline/classification-log.md`
-- `.pipeline/impact-scan.md`
-- `.pipeline/truth-repo-impact-scan-result.json`
-- `.pipeline/update-truth/` (owned by the separate Update Truth phase)
+- `.strut-pipeline/classification.json`
+- `.strut-pipeline/classification-log.md`
+- `.strut-pipeline/impact-scan.md`
+- `.strut-pipeline/truth-repo-impact-scan-result.json`
+- `.strut-pipeline/update-truth/` (owned by the separate Update Truth phase)
 
 Overwrite `process-change-state.json` with a fresh new-run record:
 
@@ -248,7 +248,7 @@ Based on the resume state's `next` field:
   - `continue` → go to Step 7, passing `start_task` from the state file as `args` to run-implementation so it resumes from that task.
   - `abort` → write `aborted` state with `aborted_at: "task_1"`, say `Pipeline aborted at task_1 gate.`, stop.
   - anything else (including empty, conversational phrases, or questions) → say `Unrecognized response. Use continue or abort.` Stop without modifying state.
-- `next == "implementation"` and `gate == "pr_rejection"` with `loop_target == "implementation"` → go to Step 7. impl-write-code reads `.pipeline/pr-rejection-feedback.json` as its feedback source on this re-dispatch. (See Step 11 for how that file is written.)
+- `next == "implementation"` and `gate == "pr_rejection"` with `loop_target == "implementation"` → go to Step 7. impl-write-code reads `.strut-pipeline/pr-rejection-feedback.json` as its feedback source on this re-dispatch. (See Step 11 for how that file is written.)
 - `next == "spec_refinement"` and `gate == "pr_rejection"` with `loop_target == "spec"` → go to Step 5 after wiping implementation state. See Step 11.
 - `next == "awaiting_merge"` and `gate == "pr_review"` → this is a PR-gate resume. Case-insensitive literal match on the first word (or first two words for `reject ...`). This gate writes a terminal `passed` state — strict matching is critical.
   - `merged` → write `passed` state with `completed` appending `"merged"`, stop (return to run-strut).
@@ -266,20 +266,20 @@ If `completed` already contains a stage name, Step 5 / 7 / 8 / 9 / 10 each check
 
 ### Step 5: Dispatch run-spec-refinement
 
-Skip this step if `completed` already includes `spec_refinement` AND `.pipeline/spec-refinement/spec-review.json` has `status: "passed"`. Otherwise dispatch.
+Skip this step if `completed` already includes `spec_refinement` AND `.strut-pipeline/spec-refinement/spec-review.json` has `status: "passed"`. Otherwise dispatch.
 
 Dispatch the run-spec-refinement skill via the Skill tool. No `args` needed — it reads the change request from conversation context and pipeline state.
 
-When the sub-orchestrator returns, check: does `.pipeline/spec-refinement/spec-review.json` exist?
+When the sub-orchestrator returns, check: does `.strut-pipeline/spec-refinement/spec-review.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - `"passed"` → append `"spec_refinement"` to `completed`. Continue to Step 6.
-  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary referencing `.pipeline/spec-refinement/spec-review.json`. Stop.
+  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary referencing `.strut-pipeline/spec-refinement/spec-review.json`. Stop.
 - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary naming the missing output. Stop.
 
 ### Step 6: Gate 1 — Spec Approval
 
-Overwrite `.pipeline/process-change-state.json` with:
+Overwrite `.strut-pipeline/process-change-state.json` with:
 
 ```json
 {
@@ -302,9 +302,9 @@ Say:
 ─────────────────────────────────────
 SPEC APPROVAL GATE
 ─────────────────────────────────────
-Spec:        .pipeline/spec-refinement/spec.json
-Intent:      .pipeline/spec-refinement/intent.json
-Review:      .pipeline/spec-refinement/spec-review.json
+Spec:        .strut-pipeline/spec-refinement/spec.json
+Intent:      .strut-pipeline/spec-refinement/intent.json
+Review:      .strut-pipeline/spec-refinement/spec-review.json
 [scope mismatch notes, if any]
 
 Review the spec. Respond at the next /run-strut invocation:
@@ -320,7 +320,7 @@ Stop. Do not proceed. Do not ask anything beyond the prompt above.
 
 This step runs only when both trust_on and decompose_on are true (guarded-decompose path). If either modifier is OFF, skip directly to Step 7.
 
-When both modifiers are ON, overwrite `.pipeline/process-change-state.json` with:
+When both modifiers are ON, overwrite `.strut-pipeline/process-change-state.json` with:
 
 ```json
 {
@@ -339,9 +339,9 @@ Say:
 ─────────────────────────────────────
 ADVERSARIAL SPEC ATTACK GATE
 ─────────────────────────────────────
-Spec:        .pipeline/spec-refinement/spec.json
-Intent:      .pipeline/spec-refinement/intent.json
-Review:      .pipeline/spec-refinement/spec-review.json
+Spec:        .strut-pipeline/spec-refinement/spec.json
+Intent:      .strut-pipeline/spec-refinement/intent.json
+Review:      .strut-pipeline/spec-refinement/spec-review.json
 
 The pipeline has paused for the adversarial spec attack checkpoint.
 In a separate session, probe the approved spec for weaknesses before
@@ -357,25 +357,25 @@ Stop. Do not proceed to Step 7 until the human resumes.
 
 ### Step 7: Dispatch run-implementation
 
-Skip this step if `completed` already includes `implementation` AND `.pipeline/implementation/implementation-status.json` has `status: "passed"`. Otherwise dispatch.
+Skip this step if `completed` already includes `implementation` AND `.strut-pipeline/implementation/implementation-status.json` has `status: "passed"`. Otherwise dispatch.
 
 Dispatch the run-implementation skill via the Skill tool. If resuming from the task_1 gate (i.e., the current `process-change-state.json` has `gate: "task_1"` and a `start_task` field), pass `args: "<start_task>"` so run-implementation resumes from that task. Otherwise, no `args` needed (run-implementation defaults to `task-1`).
 
-When the sub-orchestrator returns, check: does `.pipeline/implementation/implementation-status.json` exist?
+When the sub-orchestrator returns, check: does `.strut-pipeline/implementation/implementation-status.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - `"passed"` → append `"implementation"` to `completed`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: run-implementation — passed. Output: .pipeline/implementation/implementation-status.json. Next: run-build-check.` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "build_check"`, and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: run-implementation — passed. Output: .strut-pipeline/implementation/implementation-status.json. Next: run-build-check.` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "build_check"`, and stop.
     Continue to Step 8.
   - `"blocked"` → read `gate` from the same file. If `gate == "task_1"`: also read `remaining_tasks` and `branch_name`. Go to Step 7b.
-  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "implementation"`, and a summary referencing `.pipeline/implementation/implementation-status.json`. Stop.
+  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "implementation"`, and a summary referencing `.strut-pipeline/implementation/implementation-status.json`. Stop.
 - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "implementation"`, and a summary naming the missing output. Stop.
 
 ### Step 7b: Gate — Task 1 Validation (decompose ON only)
 
 This step is reached only when run-implementation returns `status: "blocked"` with `gate: "task_1"`. Standard path never reaches this step.
 
-Overwrite `.pipeline/process-change-state.json` with:
+Overwrite `.strut-pipeline/process-change-state.json` with:
 
 ```json
 {
@@ -411,52 +411,52 @@ Stop. Do not proceed. Do not ask anything beyond the prompt above.
 
 ### Step 8: Dispatch run-build-check
 
-Skip this step if `completed` already includes `build_check` AND `.pipeline/build-check/build-result.json` has `status: "passed"`. Otherwise dispatch.
+Skip this step if `completed` already includes `build_check` AND `.strut-pipeline/build-check/build-result.json` has `status: "passed"`. Otherwise dispatch.
 
 Dispatch the run-build-check skill via the Skill tool. No `args` needed.
 
-When the sub-orchestrator returns, check: does `.pipeline/build-check/build-result.json` exist?
+When the sub-orchestrator returns, check: does `.strut-pipeline/build-check/build-result.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - `"passed"` → append `"build_check"` to `completed`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: run-build-check — passed. Output: .pipeline/build-check/build-result.json. Next: [impl-describe-flow if trust ON, otherwise git-tool (pr)].` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "describe_flow"`, and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: run-build-check — passed. Output: .strut-pipeline/build-check/build-result.json. Next: [impl-describe-flow if trust ON, otherwise git-tool (pr)].` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "describe_flow"`, and stop.
     Continue to Step 9.
-  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "build_check"`, and a summary referencing `.pipeline/build-check/build-result.json`. Stop.
+  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "build_check"`, and a summary referencing `.strut-pipeline/build-check/build-result.json`. Stop.
 - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "build_check"`, and a summary naming the missing output. Stop.
 
 ### Step 9: Dispatch impl-describe-flow (trust ON only)
 
 This step runs only when `trust_on` is true. If `trust_on` is false, skip to Step 10.
 
-Skip this step if `completed` already includes `describe_flow` AND `.pipeline/impl-describe-flow.txt` exists and is non-empty. Otherwise dispatch.
+Skip this step if `completed` already includes `describe_flow` AND `.strut-pipeline/impl-describe-flow.txt` exists and is non-empty. Otherwise dispatch.
 
 Dispatch the impl-describe-flow agent via the Agent tool with `subagent_type: "impl-describe-flow"`.
 
-When the agent returns, check: does `.pipeline/impl-describe-flow.txt` exist and is it non-empty?
+When the agent returns, check: does `.strut-pipeline/impl-describe-flow.txt` exist and is it non-empty?
 
 - **Yes:** Append `"describe_flow"` to `completed`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: impl-describe-flow — done. Output: .pipeline/impl-describe-flow.txt. Next: git-tool (pr).` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "pr"`, and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: impl-describe-flow — done. Output: .strut-pipeline/impl-describe-flow.txt. Next: git-tool (pr).` Ask `Continue? (yes / abort)` and wait. If `abort`, overwrite `process-change-state.json` with `status: "blocked"`, `gate: "step_pause"`, `completed` (current value), `next: "pr"`, and stop.
     Continue to Step 10.
 - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "describe_flow"`, and a summary naming the missing output. Stop.
 
 ### Step 10: Dispatch git-tool (pr)
 
-Skip this step if `completed` already includes `pr_opened` AND `.pipeline/git-pr-result.json` has `status: "opened"`. Otherwise dispatch.
+Skip this step if `completed` already includes `pr_opened` AND `.strut-pipeline/git-pr-result.json` has `status: "opened"`. Otherwise dispatch.
 
 Dispatch the git-tool agent via the Agent tool with `subagent_type: "git-tool"` and `prompt: "pr"`.
 
-When the agent returns, check: does `.pipeline/git-pr-result.json` exist?
+When the agent returns, check: does `.strut-pipeline/git-pr-result.json` exist?
 
 - **Yes:** Read ONLY the `status` field (and `pr_url` for state).
   - `"opened"` → append `"pr_opened"` to `completed`. Continue to Step 11 (Gate 2).
-  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "pr"`, and a summary referencing `.pipeline/git-pr-result.json`. Stop.
+  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "pr"`, and a summary referencing `.strut-pipeline/git-pr-result.json`. Stop.
 - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "pr"`, and a summary naming the missing output. Stop.
 
 ### Step 11: Gate 2 — PR Review (and rejection routing)
 
-Read `.pipeline/git-pr-result.json` for `pr_url`.
+Read `.strut-pipeline/git-pr-result.json` for `pr_url`.
 
-Overwrite `.pipeline/process-change-state.json` with:
+Overwrite `.strut-pipeline/process-change-state.json` with:
 
 ```json
 {
@@ -491,15 +491,15 @@ Stop.
 **Rejection routing (executed only on resume from this gate; see Step 4). Rejection also cleans up `impl-describe-flow.txt` — see the `rm -f` lists below.**
 
 - `reject implementation <feedback>`:
-  1. Write `.pipeline/pr-rejection-feedback.json` with `{"loop_target":"implementation","feedback":"<verbatim text>","from":"pr_review"}`. impl-write-code reads this file as its feedback source on this re-dispatch (per its own input contract).
+  1. Write `.strut-pipeline/pr-rejection-feedback.json` with `{"loop_target":"implementation","feedback":"<verbatim text>","from":"pr_review"}`. impl-write-code reads this file as its feedback source on this re-dispatch (per its own input contract).
   2. Overwrite `process-change-state.json` with `status: "blocked"`, `gate: "pr_rejection"`, `loop_target: "implementation"`, `feedback: "<text>"`, `completed: ["spec_refinement"]`, `next: "implementation"`.
-  3. Remove per-task implementation artifacts: for each `task-*` directory under `.pipeline/implementation/`, remove `impl-write-code-result.json`, `review-scope.json`, `review-criteria-eval.json`, `review-security.json`, `review-chain-result.json`, and `git-commit-result.json`. Also remove `.pipeline/implementation/implementation-status.json`, `.pipeline/implementation/active-task.json`, `.pipeline/build-check/build-result.json`, `.pipeline/impl-describe-flow.txt`, `.pipeline/git-pr-result.json`. Keep `tests-result.json` and `git-branch-result.json` — tests and branch survive an implementation-only rejection.
+  3. Remove per-task implementation artifacts: for each `task-*` directory under `.strut-pipeline/implementation/`, remove `impl-write-code-result.json`, `review-scope.json`, `review-criteria-eval.json`, `review-security.json`, `review-chain-result.json`, and `git-commit-result.json`. Also remove `.strut-pipeline/implementation/implementation-status.json`, `.strut-pipeline/implementation/active-task.json`, `.strut-pipeline/build-check/build-result.json`, `.strut-pipeline/impl-describe-flow.txt`, `.strut-pipeline/git-pr-result.json`. Keep `tests-result.json` and `git-branch-result.json` — tests and branch survive an implementation-only rejection.
   4. Go to Step 7.
 
 - `reject spec <feedback>`:
-  1. Write `.pipeline/pr-rejection-feedback.json` with `{"loop_target":"spec","feedback":"<verbatim text>","from":"pr_review"}`. spec-write reads this on re-dispatch.
+  1. Write `.strut-pipeline/pr-rejection-feedback.json` with `{"loop_target":"spec","feedback":"<verbatim text>","from":"pr_review"}`. spec-write reads this on re-dispatch.
   2. Overwrite `process-change-state.json` with `status: "blocked"`, `gate: "pr_rejection"`, `loop_target: "spec"`, `feedback: "<text>"`, `completed: []`, `next: "spec_refinement"`.
-  3. Wipe implementation-side state: `rm -rf .pipeline/implementation .pipeline/build-check` and `rm -f .pipeline/git-pr-result.json .pipeline/impl-describe-flow.txt`. Do not wipe `.pipeline/spec-refinement` — spec-write reads the prior spec and the rejection feedback to revise.
+  3. Wipe implementation-side state: `rm -rf .strut-pipeline/implementation .strut-pipeline/build-check` and `rm -f .strut-pipeline/git-pr-result.json .strut-pipeline/impl-describe-flow.txt`. Do not wipe `.strut-pipeline/spec-refinement` — spec-write reads the prior spec and the rejection feedback to revise.
   4. Go to Step 5.
 
 - `abort`: overwrite `process-change-state.json` with `status: "aborted"`, `aborted_at: "pr_review"`. Stop.
@@ -508,7 +508,7 @@ Stop.
 
 Only reached from Step 4 when the human responds `merged` to the PR review gate.
 
-Overwrite `.pipeline/process-change-state.json` with:
+Overwrite `.strut-pipeline/process-change-state.json` with:
 
 ```json
 {
@@ -548,12 +548,12 @@ Read `examples.md` in this skill's directory for worked examples of gate respons
 - Dispatch only: run-spec-refinement, run-implementation, run-build-check, impl-describe-flow (trust ON only), git-tool (pr). Decompose ON activates the task-1 gate routing in Steps 4 and 7b; the dispatch sequence itself is unchanged.
 - Do not derive intent, write specs, review specs, write tests, write code, review code, run builds, cleanup build errors, commit, or open PRs itself. All of that is delegated.
 - Do not read content fields from agent or sub-orchestrator result files beyond the declared routing fields (`status`, `pr_url`, and the `what` comparison from `classification.json`).
-- Do not modify any source, test, spec, or pipeline file except `.pipeline/process-change-state.json` and `.pipeline/pr-rejection-feedback.json`, plus the explicit `rm -rf` / `rm -f` cleanups in Step 3 and Step 11.
+- Do not modify any source, test, spec, or pipeline file except `.strut-pipeline/process-change-state.json` and `.strut-pipeline/pr-rejection-feedback.json`, plus the explicit `rm -rf` / `rm -f` cleanups in Step 3 and Step 11.
 - Do not scan the codebase. No `Grep`/`Glob`.
 - Do not override modifiers. run-strut owns override. This skill reads classification.json as-is.
 - Do not retry sub-orchestrators. Each sub-orchestrator owns its retry budget; a `failed` from one is terminal at this level.
 - Do not merge PRs. Merge is the human's action at Gate 2.
-- Do not delete `.pipeline/classification.json`, `.pipeline/classification-log.md`, `.pipeline/impact-scan.md`, `.pipeline/truth-repo-impact-scan-result.json`, or `.pipeline/update-truth/`.
+- Do not delete `.strut-pipeline/classification.json`, `.strut-pipeline/classification-log.md`, `.strut-pipeline/impact-scan.md`, `.strut-pipeline/truth-repo-impact-scan-result.json`, or `.strut-pipeline/update-truth/`.
 - Do not launch the Explore agent.
 
 ## Decompose ON behavior
@@ -562,6 +562,6 @@ Decompose ON activates per-task iteration inside run-implementation. This skill'
 
 **Task 1 gate (implemented):** After task 1's commit, run-implementation returns `status: "blocked"` with `gate: "task_1"`. Step 7 routes to Step 7b, which writes the task_1 gate state and pauses. On resume, Step 4 routes `next: "implementation_remaining"` back to Step 7, which passes `start_task` as args so run-implementation resumes from the next task.
 
-**PR rejection cleanup (implemented):** Step 11's `reject implementation` path iterates all `task-*` directories under `.pipeline/implementation/` rather than hardcoding `task-1`. Tests and branch survive; code/review/commit artifacts are removed across all tasks.
+**PR rejection cleanup (implemented):** Step 11's `reject implementation` path iterates all `task-*` directories under `.strut-pipeline/implementation/` rather than hardcoding `task-1`. Tests and branch survive; code/review/commit artifacts are removed across all tasks.
 
 The standard path has exactly one task, so the task_1 gate branch never executes and the cleanup naturally degrades to one directory.

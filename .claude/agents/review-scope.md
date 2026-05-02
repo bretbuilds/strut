@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Review Chain. Dispatched by run-review-chain.
 
-Check whether the implementation diff stays within the scope declared in `spec.json`. Write a pass/fail verdict to `.pipeline/implementation/task-1/review-scope.json`. On failure, include specific scope violations that impl-write-code can act on in its next revision.
+Check whether the implementation diff stays within the scope declared in `spec.json`. Write a pass/fail verdict to `.strut-pipeline/implementation/task-1/review-scope.json`. On failure, include specific scope violations that impl-write-code can act on in its next revision.
 
 Do not evaluate whether criteria are satisfied — that is review-criteria-eval's job. Do not judge code quality, style, or correctness. One question only: did the diff stay inside the declared scope?
 
@@ -18,21 +18,21 @@ Do not evaluate whether criteria are satisfied — that is review-criteria-eval'
 
 ### Files to Read
 
-- `.pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
-- `.pipeline/spec-refinement/spec.json` — use `criteria[]`, `out_of_scope[]`, and `implementation_notes.files_to_modify[]` to define the declared scope.
-- `.pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `files_modified[]` as the authoritative list of files changed. Require `status: "passed"`.
-- `.pipeline/implementation/<active_task_id>/tests-result.json` — use `test_files[]` to distinguish legitimate test files from unexpected additions.
+- `.strut-pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
+- `.strut-pipeline/spec-refinement/spec.json` — use `criteria[]`, `out_of_scope[]`, and `implementation_notes.files_to_modify[]` to define the declared scope.
+- `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `files_modified[]` as the authoritative list of files changed. Require `status: "passed"`.
+- `.strut-pipeline/implementation/<active_task_id>/tests-result.json` — use `test_files[]` to distinguish legitimate test files from unexpected additions.
 - Git diff between the current branch and `main` — run `git diff --name-only main...HEAD` for the file list and `git diff main...HEAD -- <path>` per file when inspecting actual additions in a flagged file.
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. No access to review-criteria-eval output or impl-write-code rationale. The active task id is determined by reading `.pipeline/implementation/active-task.json`.
+None. No `$ARGUMENTS`. No access to review-criteria-eval output or impl-write-code rationale. The active task id is determined by reading `.strut-pipeline/implementation/active-task.json`.
 
 ## Output Contract
 
 ### Result File
 
-`.pipeline/implementation/task-1/review-scope.json`
+`.strut-pipeline/implementation/task-1/review-scope.json`
 
 run-review-chain consumes this for routing and aggregation. On failure, run-review-chain includes the issues in `review-chain-result.json` for impl-write-code's revision.
 
@@ -95,8 +95,8 @@ No other status values.
 
 ## Algorithm
 
-1. Determine the active task id: read `.pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .pipeline/implementation/<active_task_id>/review-scope.json`. Create containing directory if missing.
-2. Read `.pipeline/spec-refinement/spec.json`, `.pipeline/implementation/<active_task_id>/impl-write-code-result.json`, and `.pipeline/implementation/<active_task_id>/tests-result.json`. If any is missing or malformed, or `impl-write-code-result.json.status` is not `"passed"`, write a `failed` result with a single `issues` entry naming the problem and stop.
+1. Determine the active task id: read `.strut-pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. `rm -f .strut-pipeline/implementation/<active_task_id>/review-scope.json`. Create containing directory if missing.
+2. Read `.strut-pipeline/spec-refinement/spec.json`, `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json`, and `.strut-pipeline/implementation/<active_task_id>/tests-result.json`. If any is missing or malformed, or `impl-write-code-result.json.status` is not `"passed"`, write a `failed` result with a single `issues` entry naming the problem and stop.
 3. Build the declared-scope set: union of `spec.json.implementation_notes.files_to_modify[].path` and `tests-result.json.test_files[]`.
 4. Get the diff file list: `git diff --name-only main...HEAD`.
 5. For every changed path not in the declared-scope set, record an `unexpected_file` issue.
@@ -119,7 +119,7 @@ No other status values.
 
 - Do not dispatch other agents.
 - Read only: `spec.json`, `impl-write-code-result.json`, `tests-result.json`, and the git diff. No codebase exploration. `Grep` and `Glob` are not granted.
-- Write only `.pipeline/implementation/task-1/review-scope.json` (or active task id equivalent).
+- Write only `.strut-pipeline/implementation/task-1/review-scope.json` (or active task id equivalent).
 - Do not modify source files, test files, or any other file.
 - Do not re-run tests.
 - Do not evaluate criteria satisfaction.

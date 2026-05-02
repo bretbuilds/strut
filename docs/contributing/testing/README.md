@@ -15,7 +15,7 @@ where `<component-name>` is either a skill (matches `.claude/skills/<name>/SKILL
 The script:
 
 1. Locates the component file (skill or agent).
-2. If no test script exists at `.pipeline/test-<component>.sh`, invokes Claude to generate one using `test-categories.md` as the guide and `test-harness.sh` as the assertion library.
+2. If no test script exists at `.strut-pipeline/test-<component>.sh`, invokes Claude to generate one using `test-categories.md` as the guide and `test-harness.sh` as the assertion library.
 3. Runs the test script under Sonnet.
 4. Runs the test script under Opus.
 5. Saves per-model transcripts to `results/` (gitignored).
@@ -33,16 +33,16 @@ A component is considered ready when all applicable categories pass on both mode
 
 ## Where test artifacts go
 
-- **Generated test scripts:** `.pipeline/test-<component>.sh` (ephemeral, lives inside `.pipeline/`)
+- **Generated test scripts:** `.strut-pipeline/test-<component>.sh` (ephemeral, lives inside `.strut-pipeline/`)
 - **Test transcripts:** `docs/contributing/testing/results/` (gitignored, persistent for local debugging)
 - **Generation logs:** `docs/contributing/testing/results/generate-<component>-<timestamp>.txt`
 
 ## When things go wrong
 
-If a run fails, the harness preserves fixture files in `.pipeline/` and keeps the test script at `.pipeline/test-<component>.sh`. You can re-run the script directly without regenerating:
+If a run fails, the harness preserves fixture files in `.strut-pipeline/` and keeps the test script at `.strut-pipeline/test-<component>.sh`. You can re-run the script directly without regenerating:
 
 ```bash
-bash .pipeline/test-<component>.sh
+bash .strut-pipeline/test-<component>.sh
 ```
 
 If the test script itself is wrong (generated incorrectly), delete it and re-run `run-tests.sh` — it will regenerate.

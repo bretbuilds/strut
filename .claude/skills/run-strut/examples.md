@@ -34,7 +34,7 @@ After human says "trust on", update `classification.json` to:
 
 Three fields change: `modifiers.trust` → `true`, `execution_path` recalculated from the matrix (`guarded`), `evidence.trust_rule` updated to note override. All other fields (including `status: "classified"`) stay unchanged.
 
-Append to `.pipeline/classification-log.md`:
+Append to `.strut-pipeline/classification-log.md`:
 
 ```
 | 2026-04-14 | Add a spinner to the dashboard | ON | OFF | → guarded | none | 0 (ui) |

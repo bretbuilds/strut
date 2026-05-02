@@ -23,13 +23,13 @@ For decompose ON (multiple tasks), the TDD cycle (Steps 4–8) iterates once per
 
 ### Files Read (for status routing only)
 
-- `.pipeline/classification.json` — read `modifiers.decompose` in Step 2b to determine task iteration mode.
-- `.pipeline/spec-refinement/spec.json` — for decompose ON, read `tasks[]` in Step 2b to get the ordered task list.
-- `.pipeline/implementation/git-branch-result.json` — status check after git-tool (branch).
-- `.pipeline/implementation/<task_id>/tests-result.json` — status check after impl-write-tests.
-- `.pipeline/implementation/<task_id>/impl-write-code-result.json` — status check after impl-write-code.
-- `.pipeline/implementation/<task_id>/review-chain-result.json` — status check after run-review-chain; on failure, read as feedback source by the next impl-write-code dispatch per its own input contract.
-- `.pipeline/implementation/<task_id>/git-commit-result.json` — status check after git-tool (commit).
+- `.strut-pipeline/classification.json` — read `modifiers.decompose` in Step 2b to determine task iteration mode.
+- `.strut-pipeline/spec-refinement/spec.json` — for decompose ON, read `tasks[]` in Step 2b to get the ordered task list.
+- `.strut-pipeline/implementation/git-branch-result.json` — status check after git-tool (branch).
+- `.strut-pipeline/implementation/<task_id>/tests-result.json` — status check after impl-write-tests.
+- `.strut-pipeline/implementation/<task_id>/impl-write-code-result.json` — status check after impl-write-code.
+- `.strut-pipeline/implementation/<task_id>/review-chain-result.json` — status check after run-review-chain; on failure, read as feedback source by the next impl-write-code dispatch per its own input contract.
+- `.strut-pipeline/implementation/<task_id>/git-commit-result.json` — status check after git-tool (commit).
 
 For standard path, `<task_id>` is `task-1`. For decompose ON, `<task_id>` is the active task's id from `spec.json.tasks[]`.
 
@@ -41,8 +41,8 @@ For standard path, `<task_id>` is `task-1`. For decompose ON, `<task_id>` is the
 
 These must exist before this skill runs (produced by Read Truth and Spec Refinement):
 
-- `.pipeline/classification.json`
-- `.pipeline/spec-refinement/spec.json`
+- `.strut-pipeline/classification.json`
+- `.strut-pipeline/spec-refinement/spec.json`
 
 If any prerequisite is missing, overwrite the placeholder result file (see Step 1) with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming which prerequisite is missing. Stop.
 
@@ -50,13 +50,13 @@ If any prerequisite is missing, overwrite the placeholder result file (see Step 
 
 ### Result File
 
-- `.pipeline/implementation/implementation-status.json`
+- `.strut-pipeline/implementation/implementation-status.json`
 
 Written directly. Aggregated from dispatched agent/skill outputs.
 
 ### State File
 
-- `.pipeline/implementation/active-task.json`
+- `.strut-pipeline/implementation/active-task.json`
 
 Written before each task's dispatch cycle. Agents read this to determine the active task id. Schema:
 
@@ -172,28 +172,28 @@ On failure: run-process-change reads `implementation-status.json` and escalates 
 Parse `$ARGUMENTS`. For decompose ON: the first token (if present) is a start task id for resume. For standard path: ignored.
 
 ```bash
-mkdir -p .pipeline/implementation
+mkdir -p .strut-pipeline/implementation
 ```
 
-Do not `rm -f .pipeline/implementation/implementation-status.json` — the resume path in Step 2b reads it to recover prior invocation state. Every terminal path (Step 8b, Step 9, and every failure branch) overwrites it, so stale data cannot persist past return.
+Do not `rm -f .strut-pipeline/implementation/implementation-status.json` — the resume path in Step 2b reads it to recover prior invocation state. Every terminal path (Step 8b, Step 9, and every failure branch) overwrites it, so stale data cannot persist past return.
 
 Do not `rm -f` the per-stage result files here (`tests-result.json`, `impl-write-code-result.json`, `review-chain-result.json`, `git-commit-result.json`). Each dispatched agent or sub-orchestrator owns its own output file and performs its own cleanup.
 
 ### Step 2: Verify prerequisites
 
-Check that `.pipeline/classification.json` and `.pipeline/spec-refinement/spec.json` exist. If either is missing, overwrite `implementation-status.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming which prerequisite is missing. Stop.
+Check that `.strut-pipeline/classification.json` and `.strut-pipeline/spec-refinement/spec.json` exist. If either is missing, overwrite `implementation-status.json` with `status: "failed"`, `failed_at: "prerequisites"`, and a summary naming which prerequisite is missing. Stop.
 
 ### Step 2b: Determine task list
 
-Read `.pipeline/classification.json` field `modifiers.decompose` → `decompose_on` (boolean).
+Read `.strut-pipeline/classification.json` field `modifiers.decompose` → `decompose_on` (boolean).
 
 **If `decompose_on` is true:**
 
-Read `.pipeline/spec-refinement/spec.json` field `tasks[]` → `task_list` (ordered array of task objects, each with `id` and `criteria_ids`).
+Read `.strut-pipeline/spec-refinement/spec.json` field `tasks[]` → `task_list` (ordered array of task objects, each with `id` and `criteria_ids`).
 
 If `task_list` is empty or missing, overwrite `implementation-status.json` with `status: "failed"`, `failed_at: "task_list"`, and a summary stating the spec has no tasks array. Stop.
 
-If `$ARGUMENTS` contains a start task id: find that task in `task_list`. All tasks before it are pre-completed — record their ids in `completed_tasks`. Slice `task_list` to start from the named task. If the start task id is not found in `task_list`, overwrite `implementation-status.json` with `status: "failed"`, `failed_at: "task_list"`, and a summary naming the unrecognized task id. Stop. Read `.pipeline/implementation/implementation-status.json` (the prior invocation's blocked result) to recover `per_task` and `stages_run`. If the file is missing or has no `per_task` field, initialize both fresh.
+If `$ARGUMENTS` contains a start task id: find that task in `task_list`. All tasks before it are pre-completed — record their ids in `completed_tasks`. Slice `task_list` to start from the named task. If the start task id is not found in `task_list`, overwrite `implementation-status.json` with `status: "failed"`, `failed_at: "task_list"`, and a summary naming the unrecognized task id. Stop. Read `.strut-pipeline/implementation/implementation-status.json` (the prior invocation's blocked result) to recover `per_task` and `stages_run`. If the file is missing or has no `per_task` field, initialize both fresh.
 
 **If `decompose_on` is false:**
 
@@ -205,11 +205,11 @@ Initialize `completed_tasks = []` (unless pre-populated from start task resume a
 
 Dispatch the git-tool agent via the Agent tool with `subagent_type: "git-tool"` and `$ARGUMENTS: "branch"`.
 
-When the agent completes, check: does `.pipeline/implementation/git-branch-result.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/git-branch-result.json` exist?
 
 - **Yes:** Read the `status` field.
   - If `"created"` or `"exists"`: read the `branch_name` field (used in the final result summary).
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: git-tool (branch) — <status>. Output: .pipeline/implementation/git-branch-result.json. Next: impl-write-tests.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: git-tool (branch) — <status>. Output: .strut-pipeline/implementation/git-branch-result.json. Next: impl-write-tests.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 3b.
   - If `"failed"`: overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_at: "branch"`, and a summary referencing `git-branch-result.json`. Stop.
 - **No:** Overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_at: "branch"`, and a summary naming the missing output. Stop.
@@ -218,7 +218,7 @@ When the agent completes, check: does `.pipeline/implementation/git-branch-resul
 
 Iterate over `task_list` in order. For each task, set `current_task_id` to the task's `id` field. Initialize the per-task retry counter: `retries_used = 0`.
 
-Write `.pipeline/implementation/active-task.json`:
+Write `.strut-pipeline/implementation/active-task.json`:
 
 ```json
 {
@@ -227,7 +227,7 @@ Write `.pipeline/implementation/active-task.json`:
 ```
 
 ```bash
-mkdir -p .pipeline/implementation/<current_task_id>
+mkdir -p .strut-pipeline/implementation/<current_task_id>
 ```
 
 If `decompose_on` and this is not the first task in the iteration, say `Starting task <current_task_id>.`
@@ -236,26 +236,26 @@ Proceed to Step 4 for the current task.
 
 ### Step 4: Dispatch impl-write-tests
 
-Dispatch the impl-write-tests agent via the Agent tool with `subagent_type: "impl-write-tests"`. No `$ARGUMENTS` — the agent reads the active task id from `.pipeline/implementation/active-task.json` and the spec from pipeline state.
+Dispatch the impl-write-tests agent via the Agent tool with `subagent_type: "impl-write-tests"`. No `$ARGUMENTS` — the agent reads the active task id from `.strut-pipeline/implementation/active-task.json` and the spec from pipeline state.
 
-When the agent completes, check: does `.pipeline/implementation/<current_task_id>/tests-result.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<current_task_id>/tests-result.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`: append `"tests"` (or `"<current_task_id>:tests"` if `decompose_on`) to `stages_run`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: impl-write-tests — passed (task <current_task_id>). Output: .pipeline/implementation/<current_task_id>/tests-result.json. Next: impl-write-code.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: impl-write-tests — passed (task <current_task_id>). Output: .strut-pipeline/implementation/<current_task_id>/tests-result.json. Next: impl-write-code.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 5.
   - If `"failed"`: overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "tests"`, and a summary referencing `tests-result.json`. Stop.
 - **No:** Overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "tests"`, and a summary naming the missing output. Stop.
 
 ### Step 5: Dispatch impl-write-code
 
-Dispatch the impl-write-code agent via the Agent tool with `subagent_type: "impl-write-code"`. No `$ARGUMENTS` — the agent reads the active task id from `.pipeline/implementation/active-task.json`, the spec, the test files, and (on retry) the review chain result from pipeline state.
+Dispatch the impl-write-code agent via the Agent tool with `subagent_type: "impl-write-code"`. No `$ARGUMENTS` — the agent reads the active task id from `.strut-pipeline/implementation/active-task.json`, the spec, the test files, and (on retry) the review chain result from pipeline state.
 
-When the agent completes, check: does `.pipeline/implementation/<current_task_id>/impl-write-code-result.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<current_task_id>/impl-write-code-result.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`: append `"code"` (or `"<current_task_id>:code"` if `decompose_on`) to `stages_run`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: impl-write-code — passed (task <current_task_id>). Output: .pipeline/implementation/<current_task_id>/impl-write-code-result.json. Next: run-review-chain.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: impl-write-code — passed (task <current_task_id>). Output: .strut-pipeline/implementation/<current_task_id>/impl-write-code-result.json. Next: run-review-chain.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 6.
   - If `"failed"`: overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "code"`, include `retries_used`, and a summary referencing `impl-write-code-result.json`. Stop.
 - **No:** Overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "code"`, and a summary naming the missing output. Stop.
@@ -264,11 +264,11 @@ When the agent completes, check: does `.pipeline/implementation/<current_task_id
 
 Dispatch the run-review-chain sub-orchestrator via the Skill tool with `skill: "run-review-chain"` and `args: "<current_task_id>"`.
 
-When the sub-orchestrator completes, check: does `.pipeline/implementation/<current_task_id>/review-chain-result.json` exist?
+When the sub-orchestrator completes, check: does `.strut-pipeline/implementation/<current_task_id>/review-chain-result.json` exist?
 
 - **Yes:** Read ONLY the `status` field.
   - If `"passed"`: append `"review-chain"` (or `"<current_task_id>:review-chain"` if `decompose_on`) to `stages_run`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: run-review-chain — passed (task <current_task_id>). Output: .pipeline/implementation/<current_task_id>/review-chain-result.json. Next: git-tool (commit).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: run-review-chain — passed (task <current_task_id>). Output: .strut-pipeline/implementation/<current_task_id>/review-chain-result.json. Next: git-tool (commit).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 8.
   - If `"failed"`: append `"review-chain"` (or `"<current_task_id>:review-chain"` if `decompose_on`) to `stages_run`. Continue to Step 7.
 - **No:** Overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "review-chain"`, include `retries_used`, and a summary naming the missing output. Stop.
@@ -279,7 +279,7 @@ If `retries_used >= 3`: overwrite `implementation-status.json` with `status: "fa
 
 Otherwise: increment `retries_used = retries_used + 1`. Say `Review chain failed for task <current_task_id> (retry [retries_used] of 3). Re-dispatching impl-write-code with feedback.`
 
-**Step pause.** If `.pipeline/step-mode` exists, say `STEP: run-review-chain — failed (task <current_task_id>, retry [retries_used] of 3). Output: .pipeline/implementation/<current_task_id>/review-chain-result.json. Next: impl-write-code (retry).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+**Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: run-review-chain — failed (task <current_task_id>, retry [retries_used] of 3). Output: .strut-pipeline/implementation/<current_task_id>/review-chain-result.json. Next: impl-write-code (retry).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
 
 Go to Step 5 (dispatch impl-write-code again). impl-write-code will read `review-chain-result.json` as its feedback source per its own input contract.
 
@@ -287,11 +287,11 @@ Go to Step 5 (dispatch impl-write-code again). impl-write-code will read `review
 
 Dispatch the git-tool agent via the Agent tool with `subagent_type: "git-tool"` and `$ARGUMENTS: "commit <current_task_id>"`.
 
-When the agent completes, check: does `.pipeline/implementation/<current_task_id>/git-commit-result.json` exist?
+When the agent completes, check: does `.strut-pipeline/implementation/<current_task_id>/git-commit-result.json` exist?
 
 - **Yes:** Read the `status` field.
   - If `"committed"`: read the `commit_sha` field. Append `"commit"` (or `"<current_task_id>:commit"` if `decompose_on`) to `stages_run`.
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: git-tool (commit) — committed (task <current_task_id>). Output: .pipeline/implementation/<current_task_id>/git-commit-result.json. Next: per-task completion.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: git-tool (commit) — committed (task <current_task_id>). Output: .strut-pipeline/implementation/<current_task_id>/git-commit-result.json. Next: per-task completion.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 8b.
   - If `"failed"`: overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "commit"`, include `retries_used`, and a summary referencing `git-commit-result.json`. Stop.
 - **No:** Overwrite `implementation-status.json` with `status: "failed"`, `completed_tasks`, `failed_task: "<current_task_id>"`, `failed_at: "commit"`, and a summary naming the missing output. Stop.
@@ -304,7 +304,7 @@ If `decompose_on` and `completed_tasks` has exactly 1 entry (task 1 just finishe
 
   Build `remaining_tasks` = ordered list of remaining task ids from `task_list`.
 
-  Overwrite `.pipeline/implementation/implementation-status.json` with:
+  Overwrite `.strut-pipeline/implementation/implementation-status.json` with:
 
   ```json
   {
@@ -334,7 +334,7 @@ If no more tasks remain:
 
 **Standard path** (single task, `decompose_on` is false):
 
-Overwrite `.pipeline/implementation/implementation-status.json` with:
+Overwrite `.strut-pipeline/implementation/implementation-status.json` with:
 
 ```json
 {
@@ -353,7 +353,7 @@ If `retries_used > 0`, expand `stages_run` to reflect the repeated `code` and `r
 
 **Decompose ON** (multiple tasks):
 
-Overwrite `.pipeline/implementation/implementation-status.json` with:
+Overwrite `.strut-pipeline/implementation/implementation-status.json` with:
 
 ```json
 {
@@ -413,7 +413,7 @@ Trust ON does not change this skill's dispatch sequence. The review chain's inte
 
 Decompose ON activates per-task iteration. The orchestrator reads `classification.json.modifiers.decompose` and, when true, reads `spec.json.tasks[]` to build the ordered task list. Steps 4–8 execute once per task (Step 3 runs once for all tasks). The retry budget (3 retries) is per-task — each task starts with a fresh counter.
 
-Between tasks, the orchestrator writes `.pipeline/implementation/active-task.json` with the next task's id and requests context compaction. Agent quality degrades well before the context window fills — do not carry previous task content forward into the next task's dispatch cycle.
+Between tasks, the orchestrator writes `.strut-pipeline/implementation/active-task.json` with the next task's id and requests context compaction. Agent quality degrades well before the context window fills — do not carry previous task content forward into the next task's dispatch cycle.
 
 The standard path has exactly one task, so the per-task loop executes once with no compaction. Behavior is identical to the pre-loop implementation.
 

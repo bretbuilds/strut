@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build-check.sh — Detects the project toolchain, runs build → lint → typecheck
-# → test, and writes the result to .pipeline/build-check/build-check.json.
+# → test, and writes the result to .strut-pipeline/build-check/build-check.json.
 #
 # Override: if .strut/build.json exists, its commands take absolute priority
 # over auto-detection. Each of its four fields (build, lint, typecheck, test)
@@ -17,7 +17,7 @@
 
 set -u
 
-PIPELINE_DIR=".pipeline/build-check"
+PIPELINE_DIR=".strut-pipeline/build-check"
 OUTPUT_FILE="${PIPELINE_DIR}/build-check.json"
 OVERRIDE_CONFIG=".strut/build.json"
 MAX_OUTPUT_LINES=100

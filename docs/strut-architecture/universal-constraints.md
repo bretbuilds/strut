@@ -40,9 +40,9 @@ Orchestrators dispatch and route. Workers do the actual task. This keeps orchest
 
 ### File contracts
 
-Agents communicate through structured output files in `.pipeline/`. Every agent writes a result file containing at minimum `{skill, status}`. Orchestrators use status fields or file existence to route.
+Agents communicate through structured output files in `.strut-pipeline/`. Every agent writes a result file containing at minimum `{skill, status}`. Orchestrators use status fields or file existence to route.
 
-**Source:** Anthropic Context Engineering recommends that "detailed search context remains isolated within sub-agents" as a separation of concerns principle. File contracts are STRUT's implementation of this — agents write structured JSON, orchestrators read status fields, and no agent sees another agent's reasoning directly. The specific format (`{skill, status}` minimum, JSON files in `.pipeline/`) is a STRUT design decision, not from documentation.
+**Source:** Anthropic Context Engineering recommends that "detailed search context remains isolated within sub-agents" as a separation of concerns principle. File contracts are STRUT's implementation of this — agents write structured JSON, orchestrators read status fields, and no agent sees another agent's reasoning directly. The specific format (`{skill, status}` minimum, JSON files in `.strut-pipeline/`) is a STRUT design decision, not from documentation.
 
 **Status vocabulary is agent-specific.** Each agent defines its own success/failure values (e.g., "passed," "classified," "drafted"). Orchestrators declare which values they check. This emerged from development — the working agents use different vocabularies and the orchestrators handle both.
 

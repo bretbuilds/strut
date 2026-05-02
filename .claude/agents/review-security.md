@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Review Chain. Dispatched by run-review-chain when trust is ON. No access to review-scope's or review-criteria-eval's findings.
 
-Assess whether the implementation diff introduces or fails to prevent trust boundary violations. Check for tenant-leak paths, auth bypasses, RLS gaps, missing validations, service role usage, and violations of any named MUST NEVER constraints from the spec. Write `.pipeline/implementation/task-1/review-security.json` with specific findings for impl-write-code to address on failure.
+Assess whether the implementation diff introduces or fails to prevent trust boundary violations. Check for tenant-leak paths, auth bypasses, RLS gaps, missing validations, service role usage, and violations of any named MUST NEVER constraints from the spec. Write `.strut-pipeline/implementation/task-1/review-security.json` with specific findings for impl-write-code to address on failure.
 
 Do not evaluate scope — that is review-scope's job. Do not evaluate criteria satisfaction — that is review-criteria-eval's job. One domain only: does the diff maintain trust boundaries?
 
@@ -18,23 +18,23 @@ Do not evaluate scope — that is review-scope's job. Do not evaluate criteria s
 
 ### Files to Read
 
-- `.pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
-- `.pipeline/spec-refinement/spec.json` — use `criteria[]` (filter to entries with `type: "negative"` or containing MUST NEVER language), `implementation_notes`, and `must_never[]` if present. These define the named trust invariants the diff must not violate.
-- `.pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `status` and `files_modified[]`. Require `status: "passed"`.
-- `.pipeline/classification.json` — use `evidence.risk_signals_true` (an array of active signal names, e.g. `["auth", "rls"]`) to understand which trust domains are active.
-- `.claude/rules/security.md` — the project's security rules. Every rule is a potential violation category.
-- `.claude/rules/database.md` — the project's database rules. Relevant for RLS, tenant scoping, query patterns, and migration safety.
+- `.strut-pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
+- `.strut-pipeline/spec-refinement/spec.json` — use `criteria[]` (filter to entries with `type: "negative"` or containing MUST NEVER language), `implementation_notes`, and `must_never[]` if present. These define the named trust invariants the diff must not violate.
+- `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `status` and `files_modified[]`. Require `status: "passed"`.
+- `.strut-pipeline/classification.json` — use `evidence.risk_signals_true` (an array of active signal names, e.g. `["auth", "rls"]`) to understand which trust domains are active.
+- `.claude/rules/strut-security.md` — the project's security rules. Every rule is a potential violation category.
+- `.claude/rules/strut-database.md` — the project's database rules. Relevant for RLS, tenant scoping, query patterns, and migration safety.
 - Git diff between the current branch and `main` — run `git diff main...HEAD` for the full implementation content to audit.
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. This isolation prevents bias from other reviewers' findings. The active task id is determined by reading `.pipeline/implementation/active-task.json`.
+None. No `$ARGUMENTS`. This isolation prevents bias from other reviewers' findings. The active task id is determined by reading `.strut-pipeline/implementation/active-task.json`.
 
 ## Output Contract
 
 ### Result File
 
-`.pipeline/implementation/task-1/review-security.json`
+`.strut-pipeline/implementation/task-1/review-security.json`
 
 run-review-chain consumes this for routing and aggregation. On failure, run-review-chain includes the issues in `review-chain-result.json` for impl-write-code's revision.
 
@@ -67,7 +67,7 @@ Failed:
       "path": "app/actions/get-items.ts",
       "lines": "14-22",
       "issue": "Query joins through org_members without tenant scoping on org_members itself. RLS on items table does not protect against a pivot through unscoped org_members.",
-      "rule_violated": "security.md rule 2"
+      "rule_violated": "strut-security.md rule 2"
     }
   ],
   "summary": "Failed: N trust boundary violation(s). See issues[]."
@@ -108,16 +108,16 @@ No other status values.
 
 **HARD RULE: Your first tool call after mkdir/rm MUST be the Bash prerequisite gate in step 2. Do NOT call Read on any file until step 2 passes. If step 2 finds a MISSING file, write the failure result and stop — no Read calls, no git diff, no audit.**
 
-1. Determine the active task id: read `.pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. Run `mkdir -p .pipeline/implementation/<active_task_id>`. Run `rm -f .pipeline/implementation/<active_task_id>/review-security.json`.
+1. Determine the active task id: read `.strut-pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. Run `mkdir -p .strut-pipeline/implementation/<active_task_id>`. Run `rm -f .strut-pipeline/implementation/<active_task_id>/review-security.json`.
 2. **Prerequisite gate — MUST run before any Read call.** Run this exact Bash command (substituting `<active_task_id>` with the value from step 1):
    ```bash
-   for f in .pipeline/spec-refinement/spec.json .pipeline/implementation/<active_task_id>/impl-write-code-result.json .pipeline/classification.json; do test -f "$f" && echo "OK $f" || echo "MISSING $f"; done
+   for f in .strut-pipeline/spec-refinement/spec.json .strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json .strut-pipeline/classification.json; do test -f "$f" && echo "OK $f" || echo "MISSING $f"; done
    ```
    Parse the output. If ANY line contains `MISSING`:
-   - Write `.pipeline/implementation/<active_task_id>/review-security.json` with `status: "failed"`, a single `issues` entry of `type: "prerequisite_missing"`, `severity: "critical"`, and `issue` naming the missing file(s).
+   - Write `.strut-pipeline/implementation/<active_task_id>/review-security.json` with `status: "failed"`, a single `issues` entry of `type: "prerequisite_missing"`, `severity: "critical"`, and `issue` naming the missing file(s).
    - Say "Prerequisite missing: [file]. Cannot audit." STOP. Do not proceed to step 3.
-3. Read `.pipeline/spec-refinement/spec.json`, `.pipeline/implementation/<active_task_id>/impl-write-code-result.json`, and `.pipeline/classification.json`. If `impl-write-code-result.json.status` is not `"passed"`, write a `failed` result with a single `issues` entry naming the problem and stop.
-4. Read `.claude/rules/security.md` and `.claude/rules/database.md`. These define the trust invariants to check against.
+3. Read `.strut-pipeline/spec-refinement/spec.json`, `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json`, and `.strut-pipeline/classification.json`. If `impl-write-code-result.json.status` is not `"passed"`, write a `failed` result with a single `issues` entry naming the problem and stop.
+4. Read `.claude/rules/strut-security.md` and `.claude/rules/strut-database.md`. These define the trust invariants to check against.
 5. Extract the active risk signals from `classification.json.evidence.risk_signals_true` — an array of signal names (e.g. `["auth", "rls"]`). These determine which checks to prioritize, but all issue types are always active.
 6. Extract MUST NEVER constraints: collect all `criteria[]` entries with `type: "negative"`, plus any `must_never[]` array if present in spec.json. Each becomes a named invariant to verify.
 7. Get the diff: run `git diff main...HEAD`. For each file in `impl-write-code-result.json.files_modified[]`, inspect the diff content.
@@ -150,8 +150,8 @@ No other status values.
 ## Boundary Constraints
 
 - Do not dispatch other agents.
-- Read only: `spec.json`, `impl-write-code-result.json`, `.pipeline/classification.json`, `.claude/rules/security.md`, `.claude/rules/database.md`, and the git diff. No codebase exploration. `Grep` and `Glob` are not granted.
-- Write only `.pipeline/implementation/task-1/review-security.json` (or active task id equivalent).
+- Read only: `spec.json`, `impl-write-code-result.json`, `.strut-pipeline/classification.json`, `.claude/rules/strut-security.md`, `.claude/rules/strut-database.md`, and the git diff. No codebase exploration. `Grep` and `Glob` are not granted.
+- Write only `.strut-pipeline/implementation/task-1/review-security.json` (or active task id equivalent).
 - Do not modify source files, test files, or any other file.
 - Do not re-run tests.
 - Do not evaluate scope (that is review-scope's job).

@@ -92,9 +92,9 @@ Eleven worker agents for the standard path. Two additional agents activate for t
 
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
-| spec-derive-intent | Derive structured intent from scan evidence, rules, and business context | `classification.json`, `impact-scan.md`, `truth-repo-impact-scan-result.json`, `.claude/rules/*`, `docs/user-context/` (optional) | `.pipeline/spec-refinement/intent.json` | Sonnet |
-| spec-write | Draft spec with Given/When/Then criteria, implementation notes, and out-of-scope | `intent.json`, `impact-scan.md`, `truth-repo-impact-scan-result.json`, `classification.json`; on revision: `spec-review.json` | `.pipeline/spec-refinement/spec.json` | Sonnet |
-| spec-review | Check spec quality (ambiguity, gaps, completeness) and testability (independence, compound criteria, external dependencies) | `spec.json` | `.pipeline/spec-refinement/spec-review.json` | Sonnet |
+| spec-derive-intent | Derive structured intent from scan evidence, rules, and business context | `classification.json`, `impact-scan.md`, `truth-repo-impact-scan-result.json`, `.claude/rules/*`, `docs/user-context/` (optional) | `.strut-pipeline/spec-refinement/intent.json` | Sonnet |
+| spec-write | Draft spec with Given/When/Then criteria, implementation notes, and out-of-scope | `intent.json`, `impact-scan.md`, `truth-repo-impact-scan-result.json`, `classification.json`; on revision: `spec-review.json` | `.strut-pipeline/spec-refinement/spec.json` | Sonnet |
+| spec-review | Check spec quality (ambiguity, gaps, completeness) and testability (independence, compound criteria, external dependencies) | `spec.json` | `.strut-pipeline/spec-refinement/spec-review.json` | Sonnet |
 
 **spec-derive-intent** reads the scan evidence and project rules to produce structured intent before spec writing. For standard path (trust OFF): produces `user_sees` and `business_context`. The `must_never` array is empty — trust OFF means no risk signals fired. The agent always runs; its output richness depends on what reference material exists in `docs/user-context/`.
 
@@ -115,14 +115,14 @@ Output separates the two assessment types: `review_issues` and `validation_issue
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
 | git-tool | Git operations: branch, commit, or PR | Mode-specific inputs (see below) | Mode-specific (see below) | Haiku |
-| impl-write-tests | Write one test per criterion, verify all fail | `spec.json` (filtered to task-1 criteria_ids) | `.pipeline/implementation/task-1/tests-result.json` | Sonnet |
-| impl-write-code | Write minimum code to pass tests | `spec.json`, test files, `implementation_notes`; on retry: `review-chain-result.json` | `.pipeline/implementation/task-1/impl-write-code-result.json` | Sonnet |
+| impl-write-tests | Write one test per criterion, verify all fail | `spec.json` (filtered to task-1 criteria_ids) | `.strut-pipeline/implementation/task-1/tests-result.json` | Sonnet |
+| impl-write-code | Write minimum code to pass tests | `spec.json`, test files, `implementation_notes`; on retry: `review-chain-result.json` | `.strut-pipeline/implementation/task-1/impl-write-code-result.json` | Sonnet |
 
 **git-tool** is one agent with three modes, dispatched at different points:
 
-- **branch mode** — Creates `feature/[change-slug]` from main. Input: `classification.json` (for the `what` field to derive branch name). Output: `.pipeline/implementation/git-branch-result.json`. Skipped on resume if branch exists.
-- **commit mode** — Commits staged changes. Input: task description from `spec.json`. Output: `.pipeline/implementation/task-1/git-commit-result.json`. Commit message derived from task description.
-- **pr mode** — Opens pull request. Input: `spec.json` (for PR body), file list from diff, `impl-describe-flow.txt` (if trust ON). Output: `.pipeline/git-pr-result.json`. Dispatched by run-process-change, not run-implementation.
+- **branch mode** — Creates `feature/[change-slug]` from main. Input: `classification.json` (for the `what` field to derive branch name). Output: `.strut-pipeline/implementation/git-branch-result.json`. Skipped on resume if branch exists.
+- **commit mode** — Commits staged changes. Input: task description from `spec.json`. Output: `.strut-pipeline/implementation/task-1/git-commit-result.json`. Commit message derived from task description.
+- **pr mode** — Opens pull request. Input: `spec.json` (for PR body), file list from diff, `impl-describe-flow.txt` (if trust ON). Output: `.strut-pipeline/git-pr-result.json`. Dispatched by run-process-change, not run-implementation.
 
 **impl-write-tests** reads the spec, filters to task-1's criteria_ids (for standard path, this is all criteria), and writes test files to the branch. Each positive criterion maps to at least one positive test. The `criteria_coverage` field in its result file maps each test to its criterion in natural language — this is what the human reads at the PR gate to verify test-criterion alignment. Before running the test suite, the agent runs a self-audit that re-reads each criterion's full `then` clause and verifies every required assertion exists in the test code. This is the strongest self-audit case: impl-write-tests has no downstream review agent, so the tests become the contract that everything else is measured against — a missing assertion here means the implementation can satisfy the test without satisfying the criterion. After writing tests, it runs the test suite and verifies all new tests fail. If any test passes before implementation, something is wrong — either the test is trivial or existing code already satisfies it. Result: `passed` (all tests written and failing) or `failed` (with specifics).
 
@@ -132,8 +132,8 @@ Output separates the two assessment types: `review_issues` and `validation_issue
 
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
-| review-scope | Check implementation stays within spec scope | diff, `spec.json` (criteria + out_of_scope) | `.pipeline/implementation/task-1/review-scope.json` | Sonnet |
-| review-criteria-eval | Check each criterion has a passing test and is satisfied | diff, `spec.json` (criteria), test results | `.pipeline/implementation/task-1/review-criteria-eval.json` | Sonnet |
+| review-scope | Check implementation stays within spec scope | diff, `spec.json` (criteria + out_of_scope) | `.strut-pipeline/implementation/task-1/review-scope.json` | Sonnet |
+| review-criteria-eval | Check each criterion has a passing test and is satisfied | diff, `spec.json` (criteria), test results | `.strut-pipeline/implementation/task-1/review-criteria-eval.json` | Sonnet |
 
 **review-scope** reads the diff and the spec. Its question: "Did the implementation touch only what the spec says to touch?" Flags additions not covered by criteria, modifications to files not in `files_to_modify`, and removals not justified by the change. Returns `passed` or `failed` with specific scope violations.
 
@@ -145,7 +145,7 @@ Both reviewers get isolated context. Neither sees the other's assessment. This p
 
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
-| review-security | Check for trust boundary violations | diff, `.claude/rules/*`, must_never entries from spec | `.pipeline/implementation/task-1/review-security.json` | Opus |
+| review-security | Check for trust boundary violations | diff, `.claude/rules/*`, must_never entries from spec | `.strut-pipeline/implementation/task-1/review-security.json` | Opus |
 
 Third step in the review chain when trust is ON. Dispatched by run-review-chain after review-criteria-eval passes. Uses Opus for domain reasoning about trust boundaries. Checks for: tenant-leak paths, auth bypasses, missing validations, RLS gaps, service role key usage, anything violating named trust invariants. The review chain's fail-fast and retry behavior applies identically.
 
@@ -153,10 +153,10 @@ Third step in the review chain when trust is ON. Dispatched by run-review-chain 
 
 | Component | Role | Inputs | Output file | Type |
 |-----------|------|--------|-------------|------|
-| build-check | Run full verification suite | Branch code | `.pipeline/build-check/build-check.json` | **Bash script** |
-| build-error-cleanup | Fix build errors on failure | Build errors from `build-check.json` | `.pipeline/build-check/build-error-cleanup.json` | Agent (Sonnet) |
+| build-check | Run full verification suite | Branch code | `.strut-pipeline/build-check/build-check.json` | **Bash script** |
+| build-error-cleanup | Fix build errors on failure | Build errors from `build-check.json` | `.strut-pipeline/build-check/build-error-cleanup.json` | Agent (Sonnet) |
 
-**build-check** is a bash script, not an agent. It detects the project's toolchain and runs the appropriate build, lint, typecheck, and test commands — then captures exit codes and error output and writes the result JSON to `.pipeline/build-check/build-check.json`. See `.claude/scripts/build-check.sh` for supported toolchains (Node.js with npm/pnpm/yarn/bun, Rust, Go, Python, Makefile) and `.strut/build.json` for override configuration on unsupported stacks. Every defined check runs even if an earlier one fails, so build-error-cleanup gets the full picture. No LLM reasoning needed — the commands are deterministic. A script is cheaper, faster, and more reliable than an agent for this task. The orchestrator (run-build-check) reads the result file identically regardless of whether a script or agent produced it.
+**build-check** is a bash script, not an agent. It detects the project's toolchain and runs the appropriate build, lint, typecheck, and test commands — then captures exit codes and error output and writes the result JSON to `.strut-pipeline/build-check/build-check.json`. See `.claude/scripts/build-check.sh` for supported toolchains (Node.js with npm/pnpm/yarn/bun, Rust, Go, Python, Makefile) and `.strut/build.json` for override configuration on unsupported stacks. Every defined check runs even if an earlier one fails, so build-error-cleanup gets the full picture. No LLM reasoning needed — the commands are deterministic. A script is cheaper, faster, and more reliable than an agent for this task. The orchestrator (run-build-check) reads the result file identically regardless of whether a script or agent produced it.
 
 **build-error-cleanup** stays as an agent because fixing errors requires reasoning about code. Only runs if build-check fails. Reads the error output and attempts targeted fixes. Does not refactor, does not add features, does not change test expectations. Only fixes build/lint/type/test errors. Max 3 attempts (managed by run-build-check).
 
@@ -164,7 +164,7 @@ Third step in the review chain when trust is ON. Dispatched by run-review-chain 
 
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
-| impl-describe-flow | Produce structured data flow description | diff, `spec.json`, `impact-scan.md` | `.pipeline/impl-describe-flow.txt` | Sonnet |
+| impl-describe-flow | Produce structured data flow description | diff, `spec.json`, `impact-scan.md` | `.strut-pipeline/impl-describe-flow.txt` | Sonnet |
 
 Dispatched by run-process-change after build-check passes, before PR creation. Produces a structured text description of data flow after the change — not the diff, but the end state. Included in PR body for human validation.
 
@@ -172,7 +172,7 @@ Dispatched by run-process-change after build-check passes, before PR creation. P
 
 | Agent | Role | Inputs | Output file | Model |
 |-------|------|--------|-------------|-------|
-| update-capture | Propose knowledge updates post-merge | diff, `spec.json`, review results, `rules_gaps` from scan, upstream result files (spec-review, review-chain-result, build-result) | `.pipeline/update-truth/knowledge-proposals.json` | Sonnet |
+| update-capture | Propose knowledge updates post-merge | diff, `spec.json`, review results, `rules_gaps` from scan, upstream result files (spec-review, review-chain-result, build-result) | `.strut-pipeline/update-truth/knowledge-proposals.json` | Sonnet |
 
 **update-capture** reads what changed (diff), what was intended (spec), what reviewers found (review chain results), and what rules were missing (rules_gaps from the scan). Proposes updates to decisions log, system map, and rules files. Never writes directly — the human reviews and applies. For standard path: no root-cause analysis (that's trust ON).
 
@@ -326,7 +326,7 @@ On retry (called again by run-implementation after impl-write-code revises): alw
 6. If still failing after 3: write `build-result.json` with `failed`, return
 
 **run-update-truth** — Phase orchestrator for post-merge knowledge capture.
-1. Create `.pipeline/update-truth/` directory
+1. Create `.strut-pipeline/update-truth/` directory
 2. Dispatch update-capture
 3. Read `knowledge-proposals.json`
 4. Return status to run-strut
@@ -356,7 +356,7 @@ All well within safe range (<50% context utilization per orchestrator).
 ### Directory Structure
 
 ```
-.pipeline/
+.strut-pipeline/
   # Read Truth (flat, unchanged — already built)
   truth-repo-impact-scan-result.json
   impact-scan.md
@@ -434,7 +434,7 @@ Every read/write relationship in the standard path.
 
 **Status vocabulary is agent-specific.** Each agent declares its own status values. Orchestrators declare which values they check. This is documented in the file contract table above.
 
-**Test files and implementation code live on the branch, not in `.pipeline/`.** Only metadata (result files with status and summary) goes to `.pipeline/`. The actual code is committed to git.
+**Test files and implementation code live on the branch, not in `.strut-pipeline/`.** Only metadata (result files with status and summary) goes to `.strut-pipeline/`. The actual code is committed to git.
 
 **Content files are separate from result files.** `spec.json` is a content file (consumed by 5+ downstream agents). `spec-review.json` is a result file (consumed only by run-spec-refinement for routing). This distinction matters because content files have multiple consumers while result files have one.
 
@@ -643,7 +643,7 @@ Components designed into the architecture with explicit plug-in points, but not 
 
 ### Modifier-activated components (built)
 
-**Per-task loop in run-implementation** — Activated by decompose ON. The orchestrator reads `classification.json.modifiers.decompose` and `spec.json.tasks[]` to iterate Steps 4–8 per task. Writes `.pipeline/implementation/active-task.json` before each task cycle so agents resolve the active task id. Retry budget resets per task. Context compaction between tasks. Standard path has one task — loop executes once, behavior unchanged.
+**Per-task loop in run-implementation** — Activated by decompose ON. The orchestrator reads `classification.json.modifiers.decompose` and `spec.json.tasks[]` to iterate Steps 4–8 per task. Writes `.strut-pipeline/implementation/active-task.json` before each task cycle so agents resolve the active task id. Retry budget resets per task. Context compaction between tasks. Standard path has one task — loop executes once, behavior unchanged.
 
 **Decomposition validation in spec-review** — Activated by decompose ON. Phase 3 checks: context-fit, eval-fit, merge-fit, dependency-fit.
 
@@ -651,7 +651,7 @@ Components designed into the architecture with explicit plug-in points, but not 
 
 **Task 1 human gate** — Activated by decompose ON. run-implementation returns `status: "blocked"` with `gate: "task_1"` after task 1's commit. run-process-change handles the gate (Step 7b), writes `process-change-state.json` with `gate: "task_1"` and `start_task`, and pauses. On resume, Step 4 routes to Step 7 which re-dispatches run-implementation with the `start_task` arg. Same gate mechanism as spec approval and PR review.
 
-**Step mode** (`--step` flag) — Implemented across all orchestrators. When `--step` appears in `$ARGUMENTS`, run-strut writes `.pipeline/step-mode`. Every orchestrator checks for this flag file after each dispatch. On pause, run-process-change writes `gate: "step_pause"` blocked state with a `next` field for resume routing; sub-orchestrators (run-implementation, run-review-chain, run-build-check, run-spec-refinement, run-read-truth) use a simpler stop-on-abort pattern. The flag is per-invocation — omitting `--step` on the next invocation removes the flag file. run-strut cleans up the flag after Update Truth completes.
+**Step mode** (`--step` flag) — Implemented across all orchestrators. When `--step` appears in `$ARGUMENTS`, run-strut writes `.strut-pipeline/step-mode`. Every orchestrator checks for this flag file after each dispatch. On pause, run-process-change writes `gate: "step_pause"` blocked state with a `next` field for resume routing; sub-orchestrators (run-implementation, run-review-chain, run-build-check, run-spec-refinement, run-read-truth) use a simpler stop-on-abort pattern. The flag is per-invocation — omitting `--step` on the next invocation removes the flag file. run-strut cleans up the flag after Update Truth completes.
 
 ### Operational features (designed, build after pipeline runs end-to-end)
 

@@ -17,18 +17,18 @@ Create the output directory, dispatch update-capture, read its result, and prese
 
 ### Files Read
 
-- `.pipeline/update-truth/knowledge-proposals.json` — status check only (after update-capture returns). Read `status` for routing, then read `proposals` and `summary` for display to the human.
+- `.strut-pipeline/update-truth/knowledge-proposals.json` — status check only (after update-capture returns). Read `status` for routing, then read `proposals` and `summary` for display to the human.
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. The agent reads all its inputs from `.pipeline/` files written by earlier phases.
+None. No `$ARGUMENTS`. The agent reads all its inputs from `.strut-pipeline/` files written by earlier phases.
 
 ### Prerequisite Files
 
 The following files must exist from earlier phases (update-capture reads them):
 
-- `.pipeline/classification.json`
-- `.pipeline/spec-refinement/spec.json`
+- `.strut-pipeline/classification.json`
+- `.strut-pipeline/spec-refinement/spec.json`
 
 If these are missing, update-capture will report `failed` — this skill routes on that status.
 
@@ -38,7 +38,7 @@ If these are missing, update-capture will report `failed` — this skill routes 
 
 None. Output is the file the dispatched agent writes:
 
-- `.pipeline/update-truth/knowledge-proposals.json` (written by update-capture)
+- `.strut-pipeline/update-truth/knowledge-proposals.json` (written by update-capture)
 
 ### Return to run-strut
 
@@ -51,27 +51,27 @@ On failure: return with the failure reported. run-strut reports to the human.
 ### Step 1: Setup
 
 ```bash
-mkdir -p .pipeline/update-truth
-rm -f .pipeline/update-truth/knowledge-proposals.json
+mkdir -p .strut-pipeline/update-truth
+rm -f .strut-pipeline/update-truth/knowledge-proposals.json
 ```
 
 ### Step 2: Dispatch update-capture
 
 Dispatch the update-capture agent via the Agent tool with `subagent_type: "update-capture"`. The prompt is `run`.
 
-When the agent completes, check: does `.pipeline/update-truth/knowledge-proposals.json` exist and parse as JSON?
+When the agent completes, check: does `.strut-pipeline/update-truth/knowledge-proposals.json` exist and parse as JSON?
 
 - **No (missing or malformed):** Say `Update-capture did not produce output. Check agent logs.` Return to run-strut with failure.
 - **Yes:** Read the `status` field.
   - `"passed"` →
-    **Step pause.** If `.pipeline/step-mode` exists, say `STEP: update-capture — passed. Output: .pipeline/update-truth/knowledge-proposals.json. Next: present proposals.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
+    **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: update-capture — passed. Output: .strut-pipeline/update-truth/knowledge-proposals.json. Next: present proposals.` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
     Continue to Step 3.
   - `"failed"` → read `summary`. Say `Update-capture failed: [summary]`. Return to run-strut with failure.
   - any other value → Say `Update-capture returned unexpected status: [status].` Return to run-strut with failure.
 
 ### Step 3: Present proposals to the human
 
-Read `.pipeline/update-truth/knowledge-proposals.json` fully. Display proposals grouped by category:
+Read `.strut-pipeline/update-truth/knowledge-proposals.json` fully. Display proposals grouped by category:
 
 ```
 ─────────────────────────────────────
@@ -125,7 +125,7 @@ Say `Update Truth complete.` Return to run-strut.
 - Dispatch only: update-capture.
 - Do not analyze code, diffs, or pipeline results itself.
 - Do not write to `.claude/rules/`, `docs/decisions.md`, `docs/system-map.md`, or any knowledge substrate file.
-- Do not modify any `.pipeline/` file other than the `rm -f` in Step 1.
+- Do not modify any `.strut-pipeline/` file other than the `rm -f` in Step 1.
 - Do not launch the Explore agent.
 - Do not dispatch agents directly other than update-capture.
 - Do not scan the codebase. No `Grep`/`Glob`.

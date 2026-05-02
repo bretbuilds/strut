@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Spec Refinement. Dispatched by run-spec-refinement. Runs once per spec cycle — not re-dispatched on spec-review feedback.
 
-Produce `.pipeline/spec-refinement/intent.json` — the structured intent that spec-write composes into the spec. Answer one question: what is this change trying to accomplish from the user's perspective, and what business context grounds it?
+Produce `.strut-pipeline/spec-refinement/intent.json` — the structured intent that spec-write composes into the spec. Answer one question: what is this change trying to accomplish from the user's perspective, and what business context grounds it?
 
 Read scan evidence, project rules, and optional business context documents. Do not scan the codebase. Do not classify. Do not write the spec. Derive intent from what upstream agents and the human have already produced.
 
@@ -20,9 +20,9 @@ Read scan evidence, project rules, and optional business context documents. Do n
 
 Always:
 
-- `.pipeline/classification.json` — use `what` (the change description from the human) for grounding. Do not re-classify.
-- `.pipeline/impact-scan.md` — human-readable evidence map. Read for understanding what the change touches and how.
-- `.pipeline/truth-repo-impact-scan-result.json` — structured scan evidence. Use `risk_signals` (trust ON) and file-level detail.
+- `.strut-pipeline/classification.json` — use `what` (the change description from the human) for grounding. Do not re-classify.
+- `.strut-pipeline/impact-scan.md` — human-readable evidence map. Read for understanding what the change touches and how.
+- `.strut-pipeline/truth-repo-impact-scan-result.json` — structured scan evidence. Use `risk_signals` (trust ON) and file-level detail.
 
 Conditional:
 
@@ -41,7 +41,7 @@ None. No `$ARGUMENTS`. All input comes from files.
 
 ### Result File
 
-`.pipeline/spec-refinement/intent.json`
+`.strut-pipeline/spec-refinement/intent.json`
 
 This is both the result file (status routed on by run-spec-refinement) and the content file (consumed by spec-write).
 
@@ -70,9 +70,9 @@ When trust is ON, `must_never` entries follow this shape:
 ```json
 {
   "must_never": [
-    "Cross-tenant data access — RLS policy must independently enforce org_id scoping on every table in the query path — source: .claude/rules/security.md",
-    "Table created without RLS enabled — source: .claude/rules/security.md",
-    "Direct database mutation bypassing server action — source: .claude/rules/architecture.md"
+    "Cross-tenant data access — RLS policy must independently enforce org_id scoping on every table in the query path — source: .claude/rules/strut-security.md",
+    "Table created without RLS enabled — source: .claude/rules/strut-security.md",
+    "Direct database mutation bypassing server action — source: .claude/rules/strut-architecture.md"
   ]
 }
 ```
@@ -95,8 +95,8 @@ No other status values.
 
 ## Algorithm
 
-1. `rm -f .pipeline/spec-refinement/intent.json`
-2. Read `.pipeline/classification.json`, `.pipeline/impact-scan.md`, `.pipeline/truth-repo-impact-scan-result.json`. If any required file is missing or malformed, write `failed` result and stop.
+1. `rm -f .strut-pipeline/spec-refinement/intent.json`
+2. Read `.strut-pipeline/classification.json`, `.strut-pipeline/impact-scan.md`, `.strut-pipeline/truth-repo-impact-scan-result.json`. If any required file is missing or malformed, write `failed` result and stop.
 3. Check for `.claude/rules/` directory. If it exists and is non-empty, read all files. Otherwise note that no project rules are available.
 4. Check for `docs/user-context/` directory. If it exists and is non-empty, read all files. Otherwise note that no business context documents are available.
 5. Derive `user_sees` from the evidence: what does the user observe after this change? Ground in `classification.json.what`, the files and patterns identified in the scan, and any `docs/user-context/` material that describes user-facing behavior. Write from the user's perspective, not the developer's.
@@ -104,7 +104,7 @@ No other status values.
 7. Check `classification.json.modifiers.trust`:
    - If `false` (standard path): set `must_never` to an empty array.
    - If `true` (trust ON): read `risk_signals` from `truth-repo-impact-scan-result.json`. For each signal that is `true`, find rules in `.claude/rules/*` (loaded in step 3) that the change could violate — use `impact-scan.md` to understand what the change touches and scope accordingly. For each relevant rule, produce a `must_never` entry: frame it as a violation (what goes wrong if the rule is broken), not as the rule text itself. Append `— source: [filepath]` for traceability. If no rules were loaded in step 3, produce one `must_never` entry per fired signal describing the general trust boundary (e.g., "Cross-tenant data access — source: risk_signal:rls").
-8. Write `.pipeline/spec-refinement/intent.json` with `status: "passed"`. Stop.
+8. Write `.strut-pipeline/spec-refinement/intent.json` with `status: "passed"`. Stop.
 
 ## Anti-Rationalization Rules
 
@@ -116,8 +116,8 @@ No other status values.
 
 - Do not dispatch other agents.
 - Read only files declared in the Input Contract. No codebase scanning — `Grep` and `Glob` are not granted.
-- Use `Bash` only for `rm -f .pipeline/spec-refinement/intent.json` and directory listing (`ls .claude/rules/`, `ls docs/user-context/`).
-- Write only `.pipeline/spec-refinement/intent.json`.
+- Use `Bash` only for `rm -f .strut-pipeline/spec-refinement/intent.json` and directory listing (`ls .claude/rules/`, `ls docs/user-context/`).
+- Write only `.strut-pipeline/spec-refinement/intent.json`.
 - Do not change classification. Do not write the spec. Do not re-run the scan.
 - Do not pause for human input. Derive, write, exit.
 

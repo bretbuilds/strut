@@ -19,9 +19,9 @@ globs: .claude/skills/**, .claude/agents/**, .claude/scripts/**
 
 ## File Contracts
 
-8. Every agent writes exactly one result file to `.pipeline/`. The file path is declared in the agent's inventory and does not change.
+8. Every agent writes exactly one result file to `.strut-pipeline/`. The file path is declared in the agent's inventory and does not change.
 9. Orchestrators route on the `status` field alone. They never read agent reasoning or content fields.
-10. Information crosses agent boundaries only through `.pipeline/` file contracts. No passing data through conversation context between agents.
+10. Information crosses agent boundaries only through `.strut-pipeline/` file contracts. No passing data through conversation context between agents.
 11. `rm -f` the target file before writing. Stale files from previous runs must never be mistaken for current results.
 
 ## Pipeline Execution

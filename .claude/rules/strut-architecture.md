@@ -9,8 +9,8 @@
   skills/          # Orchestrator skills (dispatch + route, shared context)
   agents/          # Worker agents (isolated tasks, fresh context per dispatch)
   rules/           # Behavioral rules (loaded by session or by path scope)
-.pipeline/         # File contract layer — all inter-agent communication
-.specs/            # Archived specs post-merge (historical reference)
+.strut-pipeline/         # File contract layer — all inter-agent communication
+.strut-specs/            # Archived specs post-merge (historical reference)
 docs/
   context/         # Optional business context for spec-derive-intent enrichment
   core-path-architecture.md
@@ -44,5 +44,5 @@ app/               # Application code
 ## Design Principles
 
 10. Fail explicitly — when something goes wrong, handle it visibly. No silent failures, no swallowed errors. Claude Code tends to generate optimistic code that ignores error paths.
-11. Single source of truth — each piece of data lives in one place. If it can be derived, derive it rather than storing a second copy. The working codebase + tests + knowledge substrate (rules, decisions, system map) are the source of truth. Specs are transient — consumed on merge, archived in `.specs/`.
+11. Single source of truth — each piece of data lives in one place. If it can be derived, derive it rather than storing a second copy. The working codebase + tests + knowledge substrate (rules, decisions, system map) are the source of truth. Specs are transient — consumed on merge, archived in `.strut-specs/`.
 12. Tests are the permanent asset, code is disposable — any implementation can be regenerated if the tests exist to verify correctness. Do not treat current code as precious.

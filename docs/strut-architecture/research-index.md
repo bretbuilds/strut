@@ -46,7 +46,7 @@ A decision supported by multiple [R]-tier sources is well-grounded. A decision s
 
 ### File contracts for inter-agent communication
 - **[A] Anthropic Context Engineering (2025)**: Recommends that "detailed search context remains isolated within sub-agents" as a separation of concerns principle.
-- **[D]** Specific format (`{skill, status}` minimum, JSON in `.pipeline/`) is a STRUT design decision.
+- **[D]** Specific format (`{skill, status}` minimum, JSON in `.strut-pipeline/`) is a STRUT design decision.
 - Platform coupling: None. Any system with a filesystem works.
 
 ### Mechanical enforcement over directive instruction
@@ -91,7 +91,7 @@ A decision supported by multiple [R]-tier sources is well-grounded. A decision s
 - Platform coupling: None.
 
 ### Bounded spec (3-7 criteria, ≤5 tasks)
-- **[R] Stanford/UC Berkeley**: Bounded specs prevent context overload (referenced in `.claude/rules/methodology.md`; specific paper citation pending).
+- **[R] Stanford/UC Berkeley**: Bounded specs prevent context overload (referenced in `.claude/rules/strut-methodology.md`; specific paper citation pending).
 - **[R] Curse of Instructions (Harada et al., ICLR 2025)**: Fewer constraints improve compliance (applied to criteria count).
 - Platform coupling: None. Currently unenforced in spec-write — revisit once specs are produced in practice.
 
@@ -196,7 +196,7 @@ A decision supported by multiple [R]-tier sources is well-grounded. A decision s
 - **[D] Emerged from Read Truth development**. Different agents have naturally different success/failure distinctions.
 - Platform coupling: None.
 
-### `.pipeline/` directory as working state (gitignored)
+### `.strut-pipeline/` directory as working state (gitignored)
 - **[D] Design decision**: working state is ephemeral, not source code.
 - Platform coupling: None.
 
@@ -348,7 +348,7 @@ A decision supported by multiple [R]-tier sources is well-grounded. A decision s
 
 ### [D] Design decisions (our judgment, stated explicitly)
 
-See each decision above for specific rationale. Summary: must_never folding into criteria, content/result file separation, agent-specific status vocabulary, `.pipeline/` directory convention, classification log append-only, specific JSON schema choices, model selection cost rationale, Haiku for git-tool, build-check as script, two-modifier system (vs tiers), task 1 human gate, 30-minute rule for standard path, spec cycle max 5 iterations, resume-from-file mechanism.
+See each decision above for specific rationale. Summary: must_never folding into criteria, content/result file separation, agent-specific status vocabulary, `.strut-pipeline/` directory convention, classification log append-only, specific JSON schema choices, model selection cost rationale, Haiku for git-tool, build-check as script, two-modifier system (vs tiers), task 1 human gate, 30-minute rule for standard path, spec cycle max 5 iterations, resume-from-file mechanism.
 
 ---
 

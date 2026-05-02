@@ -10,7 +10,7 @@ effort: max
 
 Process Change phase, Review Chain. Dispatched by run-review-chain. No access to review-scope's findings or impl-write-code's rationale.
 
-Assess whether each criterion in `spec.json` has a corresponding passing test, and whether that test genuinely verifies the criterion's behavior. Write `.pipeline/implementation/task-1/review-criteria-eval.json` with a per-criterion verdict and, on failure, specific coverage gaps for impl-write-code or impl-write-tests to address.
+Assess whether each criterion in `spec.json` has a corresponding passing test, and whether that test genuinely verifies the criterion's behavior. Write `.strut-pipeline/implementation/task-1/review-criteria-eval.json` with a per-criterion verdict and, on failure, specific coverage gaps for impl-write-code or impl-write-tests to address.
 
 Do not evaluate scope — that is review-scope's job and has already run. Do not re-run tests. Read the test results upstream agents already produced and check the mapping between criteria, tests, and implementation.
 
@@ -18,22 +18,22 @@ Do not evaluate scope — that is review-scope's job and has already run. Do not
 
 ### Files to Read
 
-- `.pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
-- `.pipeline/spec-refinement/spec.json` — use `criteria[]` and `tasks[]`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
-- `.pipeline/implementation/<active_task_id>/tests-result.json` — use `criteria_coverage[]` for the declared mapping between tests and criteria. Require `status: "passed"`.
-- `.pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `status` and `files_modified[]`. Require `status: "passed"`; otherwise at least one planned test is still failing, and the criterion backing that test cannot be satisfied.
+- `.strut-pipeline/implementation/active-task.json` — read the `task_id` field to determine the active task. If missing, default to `task-1` (standard path).
+- `.strut-pipeline/spec-refinement/spec.json` — use `criteria[]` and `tasks[]`. Filter `criteria[]` to entries whose `id` appears in the active task's `criteria_ids`.
+- `.strut-pipeline/implementation/<active_task_id>/tests-result.json` — use `criteria_coverage[]` for the declared mapping between tests and criteria. Require `status: "passed"`.
+- `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json` — use `status` and `files_modified[]`. Require `status: "passed"`; otherwise at least one planned test is still failing, and the criterion backing that test cannot be satisfied.
 - Test files named in `tests-result.json.test_files[]` — read in full to verify each test's assertions actually match the criterion it claims to cover.
 - Diff between branch and main — run `git diff main...HEAD` for implementation content relevant to criterion satisfaction.
 
 ### Other Inputs
 
-None. No `$ARGUMENTS`. This isolation prevents bias from review-scope's findings or impl-write-code's rationale. The active task id is determined by reading `.pipeline/implementation/active-task.json`.
+None. No `$ARGUMENTS`. This isolation prevents bias from review-scope's findings or impl-write-code's rationale. The active task id is determined by reading `.strut-pipeline/implementation/active-task.json`.
 
 ## Output Contract
 
 ### Result File
 
-`.pipeline/implementation/task-1/review-criteria-eval.json`
+`.strut-pipeline/implementation/task-1/review-criteria-eval.json`
 
 run-review-chain consumes this for routing and aggregation. On failure, run-review-chain includes the issues in `review-chain-result.json` for impl-write-code's revision.
 
@@ -118,8 +118,8 @@ No other status values.
 
 ## Algorithm
 
-1. Determine the active task id: read `.pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. Run `mkdir -p .pipeline/implementation/<active_task_id>`. Run `rm -f .pipeline/implementation/<active_task_id>/review-criteria-eval.json`.
-2. Read `.pipeline/spec-refinement/spec.json`, `.pipeline/implementation/<active_task_id>/tests-result.json`, and `.pipeline/implementation/<active_task_id>/impl-write-code-result.json`. If any is missing or malformed, write `failed` result with a single `issues` entry naming the specific problem (which file, what was wrong), then stop.
+1. Determine the active task id: read `.strut-pipeline/implementation/active-task.json` field `task_id`. If the file is missing, default to `task-1`. Set this as `active_task_id`. Run `mkdir -p .strut-pipeline/implementation/<active_task_id>`. Run `rm -f .strut-pipeline/implementation/<active_task_id>/review-criteria-eval.json`.
+2. Read `.strut-pipeline/spec-refinement/spec.json`, `.strut-pipeline/implementation/<active_task_id>/tests-result.json`, and `.strut-pipeline/implementation/<active_task_id>/impl-write-code-result.json`. If any is missing or malformed, write `failed` result with a single `issues` entry naming the specific problem (which file, what was wrong), then stop.
 3. If `tests-result.json.status` is not `"passed"`, write `failed` result with an `issues[]` entry of type `upstream_failed` naming the upstream file, and stop.
 4. If `impl-write-code-result.json.status` is not `"passed"`, write `failed` result with an `issues[]` entry of type `upstream_failed`, and stop — failing tests mean criteria are not satisfied.
 5. Identify the active task from `spec.json.tasks[]` — the task whose `id` matches `active_task_id`. Filter `criteria[]` to entries whose `id` appears in that task's `criteria_ids`. If the task is not found or the filtered set is empty, write `failed` result and stop.
@@ -147,7 +147,7 @@ No other status values.
 
 - Do not dispatch other agents.
 - Read only: `spec.json`, `tests-result.json`, `impl-write-code-result.json`, test files named in `tests-result.json.test_files`, and the git diff. No codebase exploration. `Grep` and `Glob` are not granted.
-- Write only `.pipeline/implementation/task-1/review-criteria-eval.json` (or active task id equivalent).
+- Write only `.strut-pipeline/implementation/task-1/review-criteria-eval.json` (or active task id equivalent).
 - Do not modify source files, test files, or any other file.
 - Do not re-run tests.
 - Do not evaluate scope (that is review-scope's job, already run).

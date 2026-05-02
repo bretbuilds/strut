@@ -17,7 +17,7 @@ Do not re-scan the codebase. Do not reason beyond the declared rules. Encode the
 
 ### Files to Read
 
-- `.pipeline/truth-repo-impact-scan-result.json` — must contain `risk_signals`, `complexity_signals`, and `what`.
+- `.strut-pipeline/truth-repo-impact-scan-result.json` — must contain `risk_signals`, `complexity_signals`, and `what`.
 
 ### Other Inputs
 
@@ -27,7 +27,7 @@ None. No `$ARGUMENTS`. All input comes from the scan result file.
 
 ### Result File
 
-`.pipeline/classification.json`
+`.strut-pipeline/classification.json`
 
 ### Result Schema
 
@@ -59,7 +59,7 @@ None. No `$ARGUMENTS`. All input comes from the scan result file.
 
 ### Content Files
 
-`.pipeline/classification-log.md` — Append-only log. **Never delete, never `rm -f`.** One row per classification.
+`.strut-pipeline/classification-log.md` — Append-only log. **Never delete, never `rm -f`.** One row per classification.
 
 Header (write only if the file does not already exist):
 
@@ -95,15 +95,15 @@ Header (write only if the file does not already exist):
 
 ## Algorithm
 
-1. `rm -f .pipeline/classification.json`
-2. Read `.pipeline/truth-repo-impact-scan-result.json`. If missing or missing required fields (`risk_signals`, `complexity_signals`, `what`), write `{ "skill": "truth-classify", "status": "failed", "summary": "..." }` to `.pipeline/classification.json` naming the specific problem and stop.
+1. `rm -f .strut-pipeline/classification.json`
+2. Read `.strut-pipeline/truth-repo-impact-scan-result.json`. If missing or missing required fields (`risk_signals`, `complexity_signals`, `what`), write `{ "skill": "truth-classify", "status": "failed", "summary": "..." }` to `.strut-pipeline/classification.json` naming the specific problem and stop.
 3. Apply the trust rule: `trust = true` iff any value in `risk_signals` is `true`.
 4. Apply the decompose rule: `decompose = true` iff `complexity_signals.boundary_crossings >= 2`.
 5. Derive `execution_path` from the matrix.
 6. Compose `what_breaks` — one sentence describing the worst realistic consequence if the change is implemented wrong. Ground in the risk signals that fired and the layers touched.
 7. Compose `evidence.trust_rule` and `evidence.decompose_rule` strings explaining which inputs drove each decision (e.g., `"rls, schema true → trust ON"`, `"boundary_crossings >= 2 → decompose ON"`).
-8. Write `.pipeline/classification.json` with the full schema.
-9. Append one row to `.pipeline/classification-log.md`. If the file does not exist, create it with the header first.
+8. Write `.strut-pipeline/classification.json` with the full schema.
+9. Append one row to `.strut-pipeline/classification-log.md`. If the file does not exist, create it with the header first.
 10. Print the execution summary (format below). Stop.
 
 ## Execution Summary Format
@@ -129,7 +129,7 @@ Execution path: [standard | guarded | standard-decompose | guarded-decompose]
 ## Boundary Constraints
 
 - Do not dispatch other agents.
-- Write only `.pipeline/classification.json` and append to `.pipeline/classification-log.md`.
+- Write only `.strut-pipeline/classification.json` and append to `.strut-pipeline/classification-log.md`.
 - Do not re-scan the codebase.
 - Do not write specs, code, or invoke other agents.
 - Use `Bash` for `rm -f` of the result file. No other shell use.
