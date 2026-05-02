@@ -4,8 +4,6 @@ globs: .claude/skills/**, .claude/agents/**, .claude/scripts/**
 
 # Pipeline Rules
 
-<!-- Pipeline internals: agent and skill authoring constraints, file contracts, execution behavior. Scoped to pipeline paths only — does not load during ordinary feature work. -->
-
 ## Agent Constraints
 
 1. Ban the Explore agent explicitly in every agent body. Opus launches Explore between pipeline steps when not explicitly banned, consuming significant tokens. The ban cannot be moved to frontmatter — Explore is a model behavior, not a tool.
@@ -31,5 +29,3 @@ globs: .claude/skills/**, .claude/agents/**, .claude/scripts/**
 12. Skills are project-agnostic. Project-specific details come from input files and rules, not from hardcoded references in skill bodies.
 13. If a pipeline skill needed for the next step does not exist: STOP. Report which skill is missing and what the next step would be. Do NOT improvise the missing skill's job inline.
 14. Resume from file state: every gate writes `process-change-state.json`. Every resume reads it. The pipeline survives hours or days of human pause.
-
-Full architecture: `docs/strut-architecture/core-path-architecture.md`

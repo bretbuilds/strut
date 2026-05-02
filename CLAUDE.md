@@ -28,8 +28,6 @@ This project uses a modifier-based spec-first + TDD methodology. Every pipelined
 
 **Classification authority:** The pipeline (truth-classify) determines modifiers from scan evidence. Session Claude displays the result. The human can override at the gate.
 
-Full architecture: `docs/strut-architecture/core-path-architecture.md`
-
 ## Rules
 
 All behavioral rules load automatically from `.claude/rules/`. Do not duplicate them here. If a rule needs to change, change it in the rules file.
