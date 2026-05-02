@@ -14,14 +14,28 @@ Read `strut-manifest.json`. For each file listed, verify it exists. Report missi
 
 ### 2. Constraint count
 
-Count total constraints (numbered rules) across:
-- `CLAUDE.md`
-- All files in `.claude/rules/*.md`
+Count constraints (numbered rules) across `CLAUDE.md` and `.claude/rules/*.md`, separating **always-loaded** rules from **scoped** rules. A rules file with `globs:` frontmatter is scoped — it only loads when Claude works in matching paths, so it doesn't compete for attention every session.
 
-Report the count and the expected compliance rate using the Curse of Instructions formula: `success_all = 0.99^N`.
+For each rules file:
+- If frontmatter has no `globs:` field → constraints count toward **always-loaded** total.
+- If frontmatter has `globs:` → constraints count under that file's scope, listed separately.
 
-| Count | Expected full compliance |
-|-------|------------------------|
+Constraints in `CLAUDE.md` are always loaded.
+
+Report shape:
+
+```
+Always loaded:                X constraints   (compares against 50 ceiling)
+Scoped to <pattern-1>:        Y constraints   (loads only in matching paths)
+Scoped to <pattern-2>:        Z constraints
+...
+Total across all files:       N constraints   (informational)
+```
+
+Apply the Curse of Instructions threshold to the **always-loaded** number only. The expected compliance rate uses `success_all = 0.99^N` where N is always-loaded:
+
+| Always-loaded count | Expected full compliance |
+|---------------------|------------------------|
 | 20 | 82% |
 | 30 | 74% |
 | 40 | 67% |
@@ -29,10 +43,12 @@ Report the count and the expected compliance rate using the Curse of Instruction
 | 60 | 55% |
 | 70 | 50% |
 
-If count exceeds 50, suggest:
-- Consolidating overlapping rules
+If always-loaded exceeds 50, suggest:
+- Consolidating overlapping rules within unscoped files
+- Moving rules from unscoped files into scoped files where the rule only applies in specific paths
 - Removing rules that restate what architecture already enforces
-- Using `globs:` scoping to reduce always-loaded rules
+
+Scoped files are reported for visibility but do not trigger the warning.
 
 ### 3. Scoping verification
 
