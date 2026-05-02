@@ -34,7 +34,9 @@ After the script completes, read the project to detect:
 
 3. **Language-specific conventions** — detect the primary language and fill the `<!-- A7: -->` TODO in `.claude/rules/strut-operating-rules.md` with appropriate conventions.
 
-4. **Data layer** — check if the project uses SQL/Postgres/multi-tenant patterns. If yes, uncomment the `globs:` frontmatter in `.claude/rules/strut-database.md` and set paths. If the project uses a different data layer (NoSQL, single-tenant, etc.), flag this for the user to review rather than silently adapting.
+4. **Data layer** — check if the project uses SQL/Postgres/multi-tenant patterns.
+   - If yes, update the `globs:` frontmatter in `.claude/rules/strut-database.md` to match the project's actual paths (e.g., `db/migrations/**`, `app/queries/**`).
+   - If the project uses a different data layer (NoSQL, single-tenant, etc.) or has no data layer at all (CLIs, libraries, etc.), **leave the `globs:` frontmatter intact** and add a NOT APPLICABLE notice in the file body for human review. Do NOT remove the `globs:` block — its patterns already match nothing in the project, so the file stays scoped and out of session context. Removing the frontmatter promotes the file to always-loaded, which is the opposite of the intent.
 
 5. **Stack-specific permissions** — detect the build/test/lint toolchain and add appropriate entries to the `allow` list in `.claude/settings.json` (e.g., `Bash(pytest:*)` for Python, `Bash(cargo test:*)` for Rust).
 
