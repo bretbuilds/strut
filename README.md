@@ -201,13 +201,29 @@ Two mechanisms reduce this load:
 
 | File | Load scope | Purpose |
 |------|-----------|---------|
-| `CLAUDE.md` | Every session | Project identity, build commands, modifier table, pointer to architecture doc |
+| `CLAUDE.md` | Every session | Project identity, build commands, modifier table |
 | `architecture.md` | Global | Directory structure, naming, design principles |
-| `methodology.md` | Global | Classification, TDD, review chain, spec cycle, anti-rationalization |
+| `methodology.md` | Pipeline runs only | Anti-rationalization rules for session Claude during pipeline execution |
 | `operating-rules.md` | Global | Build/test/CI requirements, scope discipline, error recovery |
 | `security.md` | Global | Trust invariants, RLS rules, MUST NEVER constraints |
 | `database.md` | Scope after setup | Data-layer conventions (SQL + multi-tenant + RLS baseline) |
 | `pipeline.md` | Scoped (pre-set) | Skill/agent authoring constraints, file contracts, pipeline execution |
+
+### Why constraint count matters
+
+Research shows that LLM compliance with instructions degrades as the number of loaded constraints increases — and the degradation is exponential, not linear.
+
+Three findings establish this:
+
+- **Curse of Instructions** (Harada et al., ICLR 2025): The probability of following ALL instructions drops as `success_all = success_individual^N`. Ten instructions at 99% per-instruction compliance gives 90% full compliance. Fifty gives 60%. The curve is steep.
+- **AGENTIF** (Qi et al., NeurIPS 2025): Both constraint count AND total instruction length independently degrade compliance in agentic prompts. Long instructions with few constraints degrade. Short instructions with many constraints degrade. Both together degrade the most.
+- **RECAST** (ICLR 2026): The degradation pattern holds across model generations, including the most recent at time of publication.
+
+**What this means for your project:** Every rules file STRUT adds increases the total instruction length Claude processes each session. If your project already has rules files, the combined set competes for Claude's attention. STRUT is designed to minimize its footprint — pipeline-internal behavior is enforced by skills and agents (which run in isolated context), not by session-level rules. Only constraints that session Claude can uniquely violate remain as rules.
+
+**If you notice degraded performance:** Run a count of total constraints across your `CLAUDE.md` and `.claude/rules/` files. Consider consolidating overlapping rules, removing rules that restate what your architecture already enforces, and using `globs:` scoping to limit which rules load in which contexts.
+
+For the full constraint model and research citations, see `docs/strut-architecture/universal-constraints.md`.
 
 ---
 
