@@ -120,19 +120,48 @@ cat > "$MANIFEST" << EOF
 EOF
 echo "  [✓] strut-manifest.json written"
 
-# --- Step 9: Add .strut-pipeline/ to .gitignore if missing ---
+# --- Step 9: Configure .gitignore for STRUT working state and OS metadata ---
 GITIGNORE="${TARGET_DIR}/.gitignore"
-if [ -f "$GITIGNORE" ]; then
-  if ! grep -q "^\.strut-pipeline/" "$GITIGNORE"; then
-    echo "" >> "$GITIGNORE"
-    echo "# STRUT pipeline working state" >> "$GITIGNORE"
-    echo ".strut-pipeline/" >> "$GITIGNORE"
-    echo "  [✓] .strut-pipeline/ added to .gitignore"
+[ -f "$GITIGNORE" ] || touch "$GITIGNORE"
+
+# Append a section header + patterns only if any pattern is missing. Avoids
+# duplicate headers on re-run while keeping the file readable.
+ensure_section() {
+  local header="$1"
+  shift
+  local missing=0
+  for pattern in "$@"; do
+    if ! grep -qxF "$pattern" "$GITIGNORE"; then
+      missing=1
+      break
+    fi
+  done
+  if [ "$missing" -eq 0 ]; then
+    return
   fi
-else
-  echo "# STRUT pipeline working state" > "$GITIGNORE"
-  echo ".strut-pipeline/" >> "$GITIGNORE"
-  echo "  [✓] .gitignore created with .strut-pipeline/"
+  printf "\n%s\n" "$header" >> "$GITIGNORE"
+  for pattern in "$@"; do
+    if ! grep -qxF "$pattern" "$GITIGNORE"; then
+      echo "$pattern" >> "$GITIGNORE"
+      echo "  [✓] ${pattern} added to .gitignore"
+    fi
+  done
+}
+
+ensure_section "# STRUT pipeline working state" ".strut-pipeline/"
+ensure_section "# OS metadata"                  ".DS_Store" "Thumbs.db"
+
+# --- Step 10: Untrack .DS_Store if it's already tracked ---
+# A repo with .DS_Store committed before init defeats the new ignore line —
+# git only ignores untracked files. Untrack every .DS_Store path now so the
+# next commit removes them from the tree.
+if [ -d "${TARGET_DIR}/.git" ]; then
+  TRACKED_DS=$(git -C "$TARGET_DIR" ls-files | grep -E '(^|/)\.DS_Store$' || true)
+  if [ -n "$TRACKED_DS" ]; then
+    DS_COUNT=$(printf '%s\n' "$TRACKED_DS" | wc -l | tr -d ' ')
+    printf '%s\n' "$TRACKED_DS" | xargs -I {} git -C "$TARGET_DIR" rm --cached --quiet "{}"
+    echo "  [✓] Untracked ${DS_COUNT} .DS_Store file(s) — commit to finalize"
+  fi
 fi
 
 echo ""
