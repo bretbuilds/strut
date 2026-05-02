@@ -45,103 +45,82 @@ STRUT is not a code generator, a framework, or a language-specific toolkit. It's
 
 ## Prerequisites
 
-- Claude Code installed (`.claude/rules/` auto-loading requires v2.0.64 or later)
+- Claude Code installed (v2.0.64 or later)
 - Project under version control with a clean branching workflow
 - A working build/lint/test pipeline in your project. STRUT orchestrates these, it doesn't provide them
-- Familiarity with your project's data-layer paths (for scoping `strut-database.md` if you use it)
 
 ---
 
 ## Getting started
 
-Integration splits into three groups: mechanical setup Claude can do for you, domain setup that requires your knowledge, and ongoing practices that happen through normal use.
+### Install
 
-### Section A: Delegate to Claude
+```
+claude plugin add github:bretbuilds/strut
+```
 
-These are mechanical steps. Claude can do them all in one pass given a stack description. A reasonable first prompt: *"My stack is [X]. Do the Section A integration steps from the STRUT README. Flag anything you're uncertain about."*
+### Initialize your project
 
-**A1. Fill in `CLAUDE.md` build commands.** Replace the commented-out placeholders with your project's actual commands. These are what `scripts/build-check.sh` will invoke.
+```
+/strut:init
+```
 
-**A2. Adapt `scripts/build-check.sh`.** The script runs your build/lint/typecheck/test commands and writes a result JSON to `.strut-pipeline/build-check/build-check.json`. The template ships with placeholder commands; update them to match your project. This is the one file in the architecture that is deliberately stack-specific.
+This analyzes your codebase and:
+- Copies pipeline skills, agents, and scripts to `.claude/`
+- Copies rules templates to `.claude/rules/strut-*.md`, filling TODO placeholders based on your detected stack (build commands, directory layout, language conventions)
+- Merges STRUT permissions into `.claude/settings.json`
+- Appends the STRUT block to your `CLAUDE.md`
+- Creates `.strut-pipeline/` and `.strut-specs/` directories
+- Writes `strut-manifest.json` tracking installed files
+- Runs a health check on total constraint count
 
-**A3. Update `strut-architecture.md` directory tree.** The template assumes a generic layout (`app/lib/`, `app/components/`). Update the tree and the shared-logic rule (rule 2) to match your project's actual structure. If your project doesn't have an `app/` directory or doesn't separate shared logic/UI that way, Claude can detect the real layout from your project and rewrite accordingly.
+### Review what init filled in
 
-**A4. Scope or flag `strut-database.md`.** If your stack matches the file's SQL + multi-tenant + RLS baseline (Postgres with Supabase, Prisma, Drizzle, etc.), Claude can uncomment the `globs:` frontmatter and set the paths to your actual data-layer directories. If your stack doesn't match (NoSQL, single-tenant, no RLS), Claude should flag the file as needing replacement rather than silently converting it, since replacing these rules is a judgment call you should review.
+Init handles the mechanical setup but flags items needing your judgment:
 
-**A5. Add your stack's commands to `.claude/settings.json`.** The template ships with git, file-manipulation, and general shell commands pre-authorized in the `allow` list, but not language-specific commands. Claude needs to add entries for your build, lint, typecheck, test, and package-manager commands so those don't interrupt the pipeline with permission prompts. Examples:
+- **`.claude/rules/strut-security.md`** — Add your MUST NEVER constraints. These encode what breaks if violated (*"payment records must never be modified after settlement,"* *"audit logs must never lose entries on partial failure"*). Claude can't guess these; wrong MUST NEVERs are worse than missing ones. Format: `MUST NEVER: [constraint] — added [date] from [source]`.
+- **`.claude/rules/strut-database.md`** — Verify the detected data-layer conventions match your stack. If you don't use SQL/RLS/multi-tenant, replace with your equivalent.
+- **`docs/user-context/`** — Optional. Add product context (decisions, domain vocabulary, trust invariants) for richer specs. Start with zero files and add reactively, or seed 3–5 files covering major product areas.
 
-| Stack | Entries to add to `allow` |
-|-------|---------------------------|
-| npm | `Bash(npm run build:*)`, `Bash(npm run lint:*)`, `Bash(npm run typecheck:*)`, `Bash(npm test:*)`, `Bash(npm install:*)`, `Bash(npx:*)`, `Bash(node:*)` |
-| Python | `Bash(python:*)`, `Bash(python3:*)`, `Bash(pip install:*)`, `Bash(pytest:*)`, `Bash(mypy:*)`, `Bash(ruff:*)` |
-| Rust | `Bash(cargo build:*)`, `Bash(cargo test:*)`, `Bash(cargo clippy:*)`, `Bash(cargo check:*)` |
-| Go | `Bash(go build:*)`, `Bash(go test:*)`, `Bash(go vet:*)`, `Bash(gofmt:*)` |
+Entries arrive automatically over time via the self-improving rules cycle: the scan outputs `rules_gaps` when it detects a risk signal without a matching rule; post-merge, `update-capture` proposes specific rule text for you to review.
 
-**A6. Add dependency-manifest protection to `.claude/settings.json`.** Architecture rule 9 says "no new dependencies without approval." Enforce this mechanically by adding the relevant manifest file(s) to the `ask` list so Claude has to confirm before editing them. Examples:
+### Run the pipeline
 
-| Stack | Entries to add to `ask` |
-|-------|-------------------------|
-| npm | `Edit(package.json)`, `Edit(package-lock.json)`, `Bash(npm publish:*)` |
-| Python | `Edit(pyproject.toml)`, `Edit(requirements.txt)`, `Bash(twine upload:*)`, `Bash(poetry publish:*)` |
-| Rust | `Edit(Cargo.toml)`, `Bash(cargo publish:*)` |
-| Go | `Edit(go.mod)` |
+```
+/run-strut add user avatar upload to the profile settings page
+```
 
-**A7. Add language-specific code conventions to `strut-operating-rules.md`.** The file has a TODO block under "Code Generation" for language-specific rules. Claude can generate a reasonable starting set based on your language (destructuring depth for JS/TS, docstring style for Python, error-type conventions for Rust, etc.). Review these; coding conventions are opinionated and Claude is guessing at your preferences.
+If invoked without a description, it prints usage instructions.
 
-**A8. Uncomment your stack's block in `.gitignore`.** The universal section (environment variables, OS files, editor files, logs, coverage, pipeline state) is active by default. Stack-specific entries (Node, Python, Rust, Go) ship commented out; Claude should uncomment the block matching your stack and delete the others. If skipped, build artifacts and dependency directories will start getting committed.
+The pipeline scans your codebase, classifies the change, and walks through: spec refinement → spec approval gate → implementation (tests first, then code) → review chain → build check → PR. You're prompted at two gates: spec approval (before implementation starts) and PR review (before merge).
 
-**What happens if you skip Section A:** The pipeline won't run. These steps are load-bearing for basic operation. Claude doing them takes minutes; leaving them undone breaks the pipeline at the first change.
+### Update
 
-### Section B: Your domain knowledge
+```
+/strut:update
+```
 
-These steps encode knowledge Claude doesn't have. Claude can scaffold but not fill in.
+Pulls the latest plugin version and refreshes pipeline skills, agents, and scripts while preserving your customizations in rules files and settings.
 
-**B1. Populate `strut-security.md` MUST NEVER section.** Each entry here becomes a negative test under trust ON. Claude can suggest generic invariants ("users from one org must not access another org's data") but the load-bearing entries come from your understanding of what breaks if violated: *"payment records must never be modified after the settlement timestamp,"* *"audit logs must never lose entries on partial failure."* Wrong MUST NEVERs are worse than missing ones: they become tests that either never fire (useless) or block legitimate behavior (harmful).
+### Health check
 
-Format: `MUST NEVER: [constraint] — added [date] from [source]`. When trust ON, `spec-derive-intent` reads this section to populate the spec's `must_never[]` array; the scan reads it for trust-sensitive definitions.
+```
+/strut:doctor
+```
 
-Entries also arrive automatically over time via the self-improving rules cycle: the scan outputs a `rules_gaps` entry when it detects a risk signal without a matching rule; post-merge, `update-capture` proposes specific rule text for you to review and add.
+Checks constraint count, file integrity, scoping verification, and settings completeness.
 
-**What happens if you skip this:** Trust ON changes run without negative tests for your specific invariants. The scan and reviewers still catch general trust violations, but project-specific invariants go unprotected. Not a pipeline breaker, but meaningfully weakens the safety net.
+### Ongoing
 
-**B2. Populate `docs/user-context/` (optional but recommended).** This folder is read by `spec-derive-intent` before spec writing. It enriches spec quality by giving the agent access to product decisions, user expectations, and domain vocabulary that aren't obvious from the code alone.
+These happen naturally as you use the pipeline:
 
-The folder ships empty (contains only `docs/user-context/README.md`). You populate it yourself, in two phases:
-
-- **Initial seeding during integration.** Create a few files covering your major product areas, drawing from whatever notes, docs, or wiki pages already exist in your organization. A typical starting point is 3–5 files: one per product area with its key decisions, a glossary for domain vocabulary, a trust-invariants file for expectations that go beyond code-level rules. You can also start with zero files and add them reactively if you prefer.
-- **Ongoing additions during normal use.** Every time you clarify something at the spec approval gate that `spec-derive-intent` should have known, like "published updates are immutable after 24 hours" or "our 'customer' means account holder, not end user," that clarification is a candidate for a new context file.
-
-What belongs: product decisions, trust invariants beyond code-level rules, user expectations, domain vocabulary the AI might misinterpret.
-
-What doesn't belong: code documentation (the scan reads your code directly), API references, deployment config, changelogs.
-
-Any readable structure works. Organize by feature area, user segment, team ownership, or whatever makes sense; the scan reads the folder's contents, not a prescribed schema.
-
-**What happens if you skip this:** `spec-derive-intent` still runs but derives intent from scan evidence alone. Specs are thinner and less accurate to your product context. Mismatches get caught at the spec approval gate, but approval takes longer. If specs keep failing review for "missing criteria" or "unclear intent," populating this folder is usually the fix.
-
-### Section C: Ongoing
-
-These happen naturally as you use the pipeline.
-
-**C1. Seed project-specific rules as they emerge.** Don't try to front-load every rule. The self-improving cycle will surface gaps through normal pipeline runs. Add rules when you observe a specific failure, not in anticipation. Areas that commonly accumulate rules: commit message format, branch naming, PR title conventions, issue/ticket reference patterns.
-
-**C2. Populate `docs/project/decision-log.md` as you make non-obvious decisions.** Technology choices, architectural patterns, scope boundaries, deferred work. Entries also arrive from `update-capture` proposals after pipeline runs. The log is append-only; if a decision is superseded, add a new entry referencing the old one.
-
-**C3. Update `docs/project/system-map.md` as architecture evolves.** Data flow, service boundaries, integration points, trust boundaries. Unlike the decision log, this file is edited in place to reflect current state. The scan reads it for grounding when planning changes. Start with whatever exists; fill in sections as they become relevant.
+- **Seed project-specific rules as they emerge.** Don't front-load; the self-improving cycle surfaces gaps. Add rules when you observe a specific failure, not in anticipation.
+- **Populate `docs/project/decision-log.md` as you make non-obvious decisions.** Technology choices, architectural patterns, scope boundaries. Entries also arrive from `update-capture` proposals after pipeline runs.
+- **Update `docs/project/system-map.md` as architecture evolves.** Data flow, service boundaries, integration points, trust boundaries.
 
 ---
 
-## Running the pipeline
-
-After integration, invoke the pipeline with:
-
-```
-/run-strut <describe the change you want>
-```
-
-The pipeline scans your codebase, classifies the change, and walks through: spec refinement → spec approval gate → implementation (tests first, then code) → review chain → build check → PR. You'll be prompted at two gates: spec approval (before implementation starts) and PR review (before merge).
-
-### Step mode
+## Step mode
 
 Add `--step` to pause after every agent/skill dispatch:
 

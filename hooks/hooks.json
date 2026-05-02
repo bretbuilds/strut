@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f strut-manifest.json ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"This project uses the STRUT development pipeline. Use /run-strut for features, refactors, and multi-file changes. Quick fixes and typos can proceed directly.\"}}'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

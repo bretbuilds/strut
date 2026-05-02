@@ -21,16 +21,12 @@
       "Bash(curl *|sh*)",
       "Bash(curl *| sh*)"
     ],
-    "ask": [],
     "allow": [
       "Read(*)",
       "Edit(*)",
       "Write(*)",
       "Bash(git:*)",
       "Bash(gh:*)",
-      "Bash(npm:*)",
-      "Bash(npx:*)",
-      "Bash(node:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(head:*)",

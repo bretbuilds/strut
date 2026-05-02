@@ -1,0 +1,20 @@
+{
+  "name": "strut",
+  "description": "Spec-first, TDD-enforced development pipeline — scans your codebase, classifies changes by risk, writes specs, implements with tests first, and opens PRs with automated review",
+  "version": "1.0.0",
+  "author": {
+    "name": "Bret Morin",
+    "email": "bretmorin1@gmail.com"
+  },
+  "homepage": "https://github.com/bretbuilds/strut",
+  "repository": "https://github.com/bretbuilds/strut",
+  "license": "MIT",
+  "keywords": [
+    "spec-first",
+    "tdd",
+    "pipeline",
+    "orchestration",
+    "code-quality",
+    "review"
+  ]
+}
