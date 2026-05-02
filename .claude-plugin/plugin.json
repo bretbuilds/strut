@@ -18,32 +18,8 @@
     "review"
   ],
   "commands": [
-    "../skills/init/SKILL.md",
-    "../skills/doctor/SKILL.md",
-    "../skills/update/SKILL.md",
-    "../.claude/skills/run-strut/SKILL.md",
-    "../.claude/skills/run-read-truth/SKILL.md",
-    "../.claude/skills/run-process-change/SKILL.md",
-    "../.claude/skills/run-spec-refinement/SKILL.md",
-    "../.claude/skills/run-implementation/SKILL.md",
-    "../.claude/skills/run-build-check/SKILL.md",
-    "../.claude/skills/run-review-chain/SKILL.md",
-    "../.claude/skills/run-update-truth/SKILL.md"
-  ],
-  "agents": [
-    "../.claude/agents/build-error-cleanup.md",
-    "../.claude/agents/git-tool.md",
-    "../.claude/agents/impl-describe-flow.md",
-    "../.claude/agents/impl-write-code.md",
-    "../.claude/agents/impl-write-tests.md",
-    "../.claude/agents/review-criteria-eval.md",
-    "../.claude/agents/review-scope.md",
-    "../.claude/agents/review-security.md",
-    "../.claude/agents/spec-derive-intent.md",
-    "../.claude/agents/spec-review.md",
-    "../.claude/agents/spec-write.md",
-    "../.claude/agents/truth-classify.md",
-    "../.claude/agents/truth-repo-impact-scan.md",
-    "../.claude/agents/update-capture.md"
+    "./skills/init/SKILL.md",
+    "./skills/doctor/SKILL.md",
+    "./skills/update/SKILL.md"
   ]
 }
