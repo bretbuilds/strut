@@ -40,9 +40,9 @@ After the script completes, read the project to detect:
 
 3. **Language-specific conventions** — detect the primary language and fill the `<!-- A7: -->` TODO in `.claude/rules/strut-operating-rules.md` with appropriate conventions.
 
-4. **Data layer** — check if the project uses SQL/Postgres/multi-tenant patterns.
-   - If yes, update the `globs:` frontmatter in `.claude/rules/strut-database.md` to match the project's actual paths (e.g., `db/migrations/**`, `app/queries/**`).
-   - If the project uses a different data layer (NoSQL, single-tenant, etc.) or has no data layer at all (CLIs, libraries, etc.), **leave the `globs:` frontmatter intact** and add a NOT APPLICABLE notice in the file body for human review. Do NOT remove the `globs:` block — its patterns already match nothing in the project, so the file stays scoped and out of session context. Removing the frontmatter promotes the file to always-loaded, which is the opposite of the intent.
+4. **Data layer** — if you can confidently detect the project's data-layer path conventions (e.g., the project clearly uses Postgres with migrations under `db/migrations/`), update the `globs:` frontmatter in `.claude/rules/strut-database.md` to match those paths. Otherwise, **leave the file alone**. The shipped globs target SQL/multi-tenant patterns; if the project doesn't match, the file stays dormant (globs don't match → file doesn't load) and is available unchanged for the user to adapt later if their project grows a data layer.
+
+   Anti-pattern: do NOT remove the `globs:` frontmatter. That promotes the file from scoped to always-loaded, which is the opposite of the intent.
 
 5. **Stack-specific permissions** — detect the build/test/lint toolchain and add appropriate entries to the `allow` list in `.claude/settings.json` (e.g., `Bash(pytest:*)` for Python, `Bash(cargo test:*)` for Rust).
 
@@ -55,6 +55,7 @@ After the script completes, read the project to detect:
 After filling placeholders, report:
 
 - What was detected and filled (with confidence level)
+- Any rules files left as shipped because the project doesn't currently match (e.g., `strut-database.md` left untouched on a no-data-layer project — the file is dormant via its globs and will activate if matching paths appear later)
 - What could NOT be auto-detected and needs the user's input:
   - MUST NEVER constraints (`.claude/rules/strut-security.md` — requires domain knowledge)
   - Business context (`docs/user-context/` — optional but recommended)
@@ -62,10 +63,13 @@ After filling placeholders, report:
 
 ### Step 4: Run doctor check
 
-Count total constraints across CLAUDE.md and all `.claude/rules/*.md` files. Report the count and its implications per the Curse of Instructions research. If combined with the user's existing rules the count exceeds 50, warn and suggest consolidation strategies.
+Invoke the same constraint-count logic that `/strut:doctor` uses: count constraints (numbered rules) in `CLAUDE.md` and each `.claude/rules/*.md` file, splitting **always-loaded** rules (no `globs:` frontmatter) from **scoped** rules (those with `globs:`). Apply the Curse of Instructions threshold to the *always-loaded* count only — that is what loads every session and competes for attention. Scoped rules are reported separately and do not trigger the warning.
+
+If always-loaded exceeds 50, warn and suggest consolidation strategies (consolidate overlapping rules, move single-context rules into a scoped file, remove rules that restate what architecture already enforces). If a NOT APPLICABLE rules file was deleted in Step 2, the deleted file's constraints have already been excluded from the count — no separate adjustment needed.
 
 ## Important
 
 - Do NOT skip the install script. It guarantees every file is copied.
 - Do NOT modify files the script hasn't created (user's existing code, their rules files, their CLAUDE.md content above the STRUT block).
+- Do NOT delete shipped rules files. A rules file whose globs don't match the current project is dormant (not loaded), not broken — it's ready to activate the moment matching paths exist. Leave it alone.
 - Flag uncertainty rather than guessing. "I detected X but I'm not confident" is better than silently writing wrong rules.

@@ -52,7 +52,12 @@ Scoped files are reported for visibility but do not trigger the warning.
 
 ### 3. Scoping verification
 
-For each rules file with `globs:` frontmatter, verify the glob patterns match actual project paths. Report globs that would never match anything.
+For each rules file with `globs:` frontmatter, check whether the glob patterns currently match any paths in the project. Report the result, but distinguish two cases:
+
+- **Globs match — actively scoped.** The file loads when Claude works in those paths. Report under `pass` as informational.
+- **Globs do not match — dormant.** The file is shipped but currently inert. This is **not a warning** — it's the expected state for templates that don't yet apply (e.g., `strut-database.md` on a no-data-layer project; the file activates automatically the moment matching paths appear). Report under an informational `Dormant rules` section, not under warnings. Note the patterns and the file so the user knows what's available without acting on it.
+
+Only treat globs as a real problem (warn) if the user appears to have **edited** them (paths look project-specific rather than template defaults) and they still don't match — that suggests a typo, not a dormant template.
 
 ### 4. Settings completeness
 
