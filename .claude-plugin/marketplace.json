@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "bretbuilds-strut",
+  "description": "STRUT — Spec-first, TDD-enforced development pipeline for Claude Code",
+  "owner": {
+    "name": "Bret Morin",
+    "email": "bretmorin1@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "strut",
+      "description": "Spec-first, TDD-enforced development pipeline — scans your codebase, classifies changes by risk, writes specs, implements with tests first, and opens PRs with automated review",
+      "author": {
+        "name": "Bret Morin"
+      },
+      "category": "development",
+      "source": "./",
+      "homepage": "https://github.com/bretbuilds/strut"
+    }
+  ]
+}
