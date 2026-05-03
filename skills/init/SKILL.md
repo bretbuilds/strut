@@ -65,7 +65,7 @@ After filling placeholders, report:
 
 Invoke the same constraint-count logic that `/strut:doctor` uses: count constraints (numbered rules) in `CLAUDE.md` and each `.claude/rules/*.md` file, splitting **always-loaded** rules (no `globs:` frontmatter) from **scoped** rules (those with `globs:`). Apply the Curse of Instructions threshold to the *always-loaded* count only — that is what loads every session and competes for attention. Scoped rules are reported separately and do not trigger the warning.
 
-If always-loaded exceeds 50, warn and suggest consolidation strategies (consolidate overlapping rules, move single-context rules into a scoped file, remove rules that restate what architecture already enforces). If a NOT APPLICABLE rules file was deleted in Step 2, the deleted file's constraints have already been excluded from the count — no separate adjustment needed.
+If always-loaded exceeds 50, warn and suggest consolidation strategies (consolidate overlapping rules, move single-context rules into a scoped file, remove rules that restate what architecture already enforces).
 
 ## Important
 

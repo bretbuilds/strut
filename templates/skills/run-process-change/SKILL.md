@@ -26,7 +26,7 @@ This is the largest orchestrator — it owns both human gates and the rejection-
 - `.strut-pipeline/classification.json` — routing source of truth. `what` is compared against any prior state's `what` to decide new-run vs resume. `modifiers.trust` is read to conditionally dispatch impl-describe-flow (Step 9). `modifiers.decompose` is read for the task 1 gate routing (Step 7b).
 - `.strut-pipeline/process-change-state.json` — phase-level resume state. Read on every invocation to decide whether to start fresh or resume.
 - `.strut-pipeline/spec-refinement/spec-review.json` — status check after run-spec-refinement.
-- `.strut-pipeline/spec-refinement/spec.json` — existence check (used for the spec approval gate prompt display and for `what` reference in state writes).
+- `.strut-pipeline/spec-refinement/spec.json` — content read at the spec approval gate (Step 6) to render a human-readable summary, plus existence check and `what` reference for state writes. Content fields are NOT used for routing decisions — only for human display, consistent with the "route on status alone" rule.
 - `.strut-pipeline/implementation/implementation-status.json` — status check after run-implementation.
 - `.strut-pipeline/build-check/build-result.json` — status check after run-build-check.
 - `.strut-pipeline/impl-describe-flow.txt` — existence check after impl-describe-flow (trust ON only).
@@ -292,22 +292,57 @@ Overwrite `.strut-pipeline/process-change-state.json` with:
 }
 ```
 
-Before displaying the gate, check for scope mismatch between classification and spec:
-- If `classification.json.modifiers.trust` is OFF but `spec.json.criteria[]` contains any `type: "negative"` entries, add a note: `⚠ Spec contains negative criteria but trust is OFF. Consider overriding to trust ON.`
-- If `classification.json.modifiers.decompose` is OFF but `spec.json.implementation_notes.files_to_modify` spans 3+ distinct directory roots, add a note: `⚠ Spec touches N directory boundaries but decompose is OFF. Consider overriding to decompose ON.`
+Before displaying the gate:
 
-Say:
+1. **Check for scope mismatch between classification and spec.** Collect any of these notes for inclusion in the prompt:
+   - If `classification.json.modifiers.trust` is OFF but `spec.json.criteria[]` contains any `type: "negative"` entries, add: `⚠ Spec contains negative criteria but trust is OFF. Consider overriding to trust ON.`
+   - If `classification.json.modifiers.decompose` is OFF but `spec.json.implementation_notes.files_to_modify` spans 3+ distinct directory roots, add: `⚠ Spec touches N directory boundaries but decompose is OFF. Consider overriding to decompose ON.`
+
+2. **Read `.strut-pipeline/spec-refinement/spec.json` and render a human-readable summary.** The spec is a JSON file contract for downstream agents, but at this gate the human needs to review the actual content, not navigate raw JSON. Render the approval-relevant fields below in full — `what`, `user_sees`, `criteria`, `implementation_notes.files_to_modify`, `out_of_scope`, `tasks`. Do not truncate. Implementation hints (`patterns_to_follow`, `files_to_reference`) are not rendered here — they're for downstream agents, not approval, and the user can read them via the raw spec link if curious.
+
+Render rules for missing or empty fields:
+- If a field is missing entirely, omit its section silently.
+- If an array field exists but is empty, render `(none specified)` under the section header.
+- If `criteria[].type` is absent on an entry, render the type as `unspecified`.
+- If `tasks` is missing or has 0 entries, render `Tasks: (not specified — single-task default).`
+
+Say (with bracketed sections filled from the actual spec content):
 
 ```
 ─────────────────────────────────────
 SPEC APPROVAL GATE
 ─────────────────────────────────────
-Spec:        .strut-pipeline/spec-refinement/spec.json
-Intent:      .strut-pipeline/spec-refinement/intent.json
-Review:      .strut-pipeline/spec-refinement/spec-review.json
-[scope mismatch notes, if any]
 
-Review the spec. Respond at the next /run-strut invocation:
+**What:** <spec.what>
+
+**User sees:**
+<spec.user_sees>
+
+**Acceptance criteria** (<count> total: <positive count> positive, <negative count> negative):
+- **C1** (<type>): Given <given>, when <when>, then <then>.
+- **C2** (<type>): ...
+  [render every criterion in spec.criteria, in order]
+
+**Files to modify** (<count>):
+- `<path>` — <reason>
+  [render every entry in spec.implementation_notes.files_to_modify]
+
+**Out of scope:**
+- <item>
+  [render every entry in spec.out_of_scope; if empty, write "(none specified)"]
+
+**Tasks:** <count> task(s).
+  [if more than 1, render each task's description on its own bulleted line]
+
+[scope mismatch notes from step 1, if any — each on its own line, prefixed with ⚠]
+
+─────────────────────────────────────
+Raw files (for deeper review):
+  Spec:    .strut-pipeline/spec-refinement/spec.json
+  Intent:  .strut-pipeline/spec-refinement/intent.json
+  Review:  .strut-pipeline/spec-refinement/spec-review.json
+
+Respond at the next /run-strut invocation:
   - "continue" to approve and proceed to implementation
   - "revise" to re-run spec refinement with feedback (edit spec-review.json first, or provide notes inline)
   - "abort" to stop the pipeline

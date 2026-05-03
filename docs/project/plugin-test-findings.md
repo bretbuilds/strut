@@ -56,7 +56,7 @@ The test change: *"add a `WithDuration(start time.Time)` helper that returns a c
   - `templates/skills/run-process-change/SKILL.md` — handle `spec_stuck` gate, parse `guidance:` / `force <N>` / `abort`
   - `templates/skills/run-strut/SKILL.md` — display the `spec_stuck` gate
 
-- [ ] **Spec approval gate: render human-readable spec.** Currently the gate prints file paths and asks the human to read raw JSON. Update `templates/skills/run-process-change/SKILL.md` (around lines 295–315) so session Claude reads `spec.json` and renders a markdown summary (what / user_sees / criteria / files / out-of-scope / tasks) before showing the prompt.
+- [x] **Spec approval gate: render human-readable spec.** ~~Currently the gate prints file paths and asks the human to read raw JSON.~~ Fixed in `templates/skills/run-process-change/SKILL.md` Step 6 (mirrored in `.claude/skills/`): the gate now instructs Claude to read `spec.json` and render a markdown summary (what / user_sees / acceptance criteria with type and Given/When/Then / files to modify / out of scope / tasks) inside the gate block. Raw file paths still appear at the bottom for users who want to view deeper detail. Scope-mismatch notes (the existing trust/decompose checks) are preserved and inserted between the summary and the response options. Verification will come from the next `/run-strut` invocation.
 - [x] **`/strut:init`: detect dirty / zero-commit / DS_Store-tracked state.** ~~A repo with `git init` but zero commits passes the README's "version controlled" prereq but fails `git-tool`'s clean-tree precondition at branch creation, with no early signal.~~ Fixed in `bin/strut-install.sh` Step 0: preflight aborts with actionable guidance for three states — not a git repo, zero commits on current branch, or dirty tree (with `git status --short` output). Skill body (`skills/init/SKILL.md`) updated to instruct Claude to relay each failure mode to the user without silently fixing it. Verified against all four states (not-a-repo, zero-commits, dirty, and clean).
 - [x] **`/strut:init`: append OS metadata to `.gitignore`.** ~~Add `.DS_Store`, `Thumbs.db` as a baseline. If `.DS_Store` is already tracked, run `git rm --cached` as part of init.~~ Fixed in `bin/strut-install.sh` Steps 9–10: `.DS_Store` and `Thumbs.db` appended under an `# OS metadata` section header, idempotent on re-run; tracked `.DS_Store` files (at any depth) are untracked via `git rm --cached`. Verified end-to-end on a temp repo with `.DS_Store` committed at multiple levels.
 
@@ -72,7 +72,9 @@ The test change: *"add a `WithDuration(start time.Time)` helper that returns a c
 
 ### Lower priority — deferred
 
-- [ ] **`/strut:update` interaction with NOT APPLICABLE deletions.** When a user runs init on a no-data-layer project, `strut-database.md` is deleted. If they later run `/strut:update`, the update flow may re-copy the template and undo the deletion (depending on its merge strategy). Either: (a) update should respect `strut-manifest.json` and skip files the user removed, or (b) re-running init's data-layer detection during update should re-delete. Surfaced as a follow-up from item 4 — out of scope for that fix but worth verifying once update is exercised end-to-end.
+- [ ] **Step 6b (adversarial spec attack gate) and PR review gate use the same raw-JSON style we fixed for spec approval.** For consistency, both should render their relevant content human-readably instead of pointing at file paths. Surfaced from item 5 audit.
+
+
 
 
 
