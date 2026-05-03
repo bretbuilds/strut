@@ -27,7 +27,7 @@ This is the largest orchestrator — it owns both human gates and the rejection-
 - `.strut-pipeline/process-change-state.json` — phase-level resume state. Read on every invocation to decide whether to start fresh or resume.
 - `.strut-pipeline/spec-refinement/spec-review.json` — status check after run-spec-refinement.
 - `.strut-pipeline/spec-refinement/spec-refinement-result.json` — existence + status check after run-spec-refinement. Only present when run-spec-refinement exhausts its 5-iteration budget; signals routing to the spec_stuck gate.
-- `.strut-pipeline/spec-refinement/spec.json` — content read at the spec approval gate (Step 6) to render a human-readable summary, plus existence check and `what` reference for state writes. Content fields are NOT used for routing decisions — only for human display, consistent with the "route on status alone" rule.
+- `.strut-pipeline/spec-refinement/spec.json` — content read at the spec approval gate (Step 6) AND the adversarial spec attack gate (Step 6b) to render a human-readable summary, plus existence check and `what` reference for state writes. Content fields are NOT used for routing decisions — only for human display, consistent with the "route on status alone" rule.
 - `.strut-pipeline/spec-refinement/iterations/iter-*-review.json` — content read at the spec_stuck gate (Step 5b) to render one-line summaries of each failed iteration. Display only.
 - `.strut-pipeline/implementation/implementation-status.json` — status check after run-implementation.
 - `.strut-pipeline/build-check/build-result.json` — status check after run-build-check.
@@ -457,19 +457,56 @@ When both modifiers are ON, overwrite `.strut-pipeline/process-change-state.json
 }
 ```
 
-Say:
+Render the spec for the user, using the same approach as Step 6's spec approval gate. Read `.strut-pipeline/spec-refinement/spec.json` and render `what`, `user_sees`, `criteria`, `implementation_notes.files_to_modify`, `out_of_scope`, and `tasks` in full. Implementation hints (`patterns_to_follow`, `files_to_reference`) are not rendered — they're for downstream agents.
+
+Render rules for missing or empty fields (identical to Step 6):
+- If a field is missing entirely, omit its section silently.
+- If an array field exists but is empty, render `(none specified)` under the section header.
+- If `criteria[].type` is absent on an entry, render the type as `unspecified`.
+- If `tasks` is missing or has 0 entries, render `Tasks: (not specified — single-task default).`
+
+The user is about to scrutinize this spec adversarially in a separate session — they need to see what they're attacking.
+
+Say (with bracketed sections filled from the actual spec content):
 
 ```
 ─────────────────────────────────────
 ADVERSARIAL SPEC ATTACK GATE
 ─────────────────────────────────────
-Spec:        .strut-pipeline/spec-refinement/spec.json
-Intent:      .strut-pipeline/spec-refinement/intent.json
-Review:      .strut-pipeline/spec-refinement/spec-review.json
 
-The pipeline has paused for the adversarial spec attack checkpoint.
-In a separate session, probe the approved spec for weaknesses before
-any code is written.
+**What:** <spec.what>
+
+**User sees:**
+<spec.user_sees>
+
+**Acceptance criteria** (<count> total: <positive count> positive, <negative count> negative):
+- **C1** (<type>): Given <given>, when <when>, then <then>.
+- **C2** (<type>): ...
+  [render every criterion in spec.criteria, in order]
+
+**Files to modify** (<count>):
+- `<path>` — <reason>
+  [render every entry in spec.implementation_notes.files_to_modify]
+
+**Out of scope:**
+- <item>
+  [render every entry in spec.out_of_scope; if empty, write "(none specified)"]
+
+**Tasks:** <count> task(s).
+  [if more than 1, render each task's description on its own bulleted line]
+
+─────────────────────────────────────
+
+The pipeline has paused for the adversarial spec attack checkpoint. In a
+separate session, probe the spec above for weaknesses before any code is
+written. Look for: trust-boundary gaps, ambiguous criteria an attacker
+could exploit, missing must_never coverage, scope creep that opens new
+risk surface.
+
+Raw files (for deeper review):
+  Spec:    .strut-pipeline/spec-refinement/spec.json
+  Intent:  .strut-pipeline/spec-refinement/intent.json
+  Review:  .strut-pipeline/spec-refinement/spec-review.json
 
 Respond at the next /run-strut invocation:
   - "continue" to proceed to implementation

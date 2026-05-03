@@ -72,7 +72,8 @@ The test change: *"add a `WithDuration(start time.Time)` helper that returns a c
 
 ### Lower priority — deferred
 
-- [ ] **Step 6b (adversarial spec attack gate) and PR review gate use the same raw-JSON style we fixed for spec approval.** For consistency, both should render their relevant content human-readably instead of pointing at file paths. Surfaced from item 5 audit.
+- [x] **Step 6b adversarial spec attack gate: render human-readable spec.** ~~Used the same raw-JSON style we fixed for spec approval.~~ Fixed: now renders the same `what` / `user_sees` / `criteria` / `files` / `out_of_scope` / `tasks` summary as Step 6 (spec approval), so the human can see what they're about to attack adversarially. Raw file paths preserved for deeper inspection. Synced to dogfood mirror.
+- ~~**PR review gate**: not changed. The artifact (PR diff) lives on GitHub, not in pipeline files. The current "PR: <url>" pointer is the right shape — rendering local content there wouldn't add what GitHub already provides.~~
 
 
 
