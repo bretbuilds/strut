@@ -27,7 +27,16 @@ Always:
 
 On revision from spec cycle (if present):
 
-- `.strut-pipeline/spec-refinement/spec-review.json` — contains `review_issues[]` and `validation_issues[]` arrays. Fold both into one revision.
+- `.strut-pipeline/spec-refinement/spec-review.json` — the most recent review. Contains `review_issues[]` and `validation_issues[]` arrays. Fold both into one revision.
+
+On revision after the spec_stuck gate (if present):
+
+- `.strut-pipeline/spec-refinement/human-guidance.md` — clarifying input from the human after 5 iterations failed to converge. This is the highest-priority input: it can override review concerns, restrict scope, redirect approach. Treat as authoritative.
+
+Historical context (read all that exist; informational, not direct feedback):
+
+- `.strut-pipeline/spec-refinement/iterations/iter-*-review.json` — prior failed reviews from the **current** round. Read these to avoid regressing on concerns they flagged that were already fixed in subsequent iterations. They are not new feedback to address — `spec-review.json` is.
+- `.strut-pipeline/spec-refinement/iterations-archive/round-*/iter-*-review.json` — prior failed reviews from **earlier** rounds (before guidance was given). Same purpose: regression-avoidance context. These may be partially obsoleted by `human-guidance.md`; trust the guidance over the historical reviews when they conflict.
 
 On revision from PR rejection targeting spec (if present):
 
@@ -35,7 +44,12 @@ On revision from PR rejection targeting spec (if present):
 
 ### Feedback Precedence
 
-If `pr-rejection-feedback.json` exists, it takes precedence. Any `spec-review.json` present is from a previously-approved cycle and is stale — ignore it.
+When multiple feedback sources are present, address them in this order of authority:
+
+1. **`pr-rejection-feedback.json`** — PR rejection beats everything else. If present, any `spec-review.json` is from a previously-approved cycle and stale; ignore it.
+2. **`human-guidance.md`** — the human spoke at the spec_stuck gate. Their guidance can restrict scope, redirect approach, or explicitly accept things review flagged. Where guidance and historical reviews conflict, guidance wins.
+3. **`spec-review.json`** — the latest mid-cycle review. Address every `review_issues[]` and `validation_issues[]` entry.
+4. **`iterations/` and `iterations-archive/`** — historical context. Use to avoid regressing on issues already fixed in earlier iterations. Do not treat each historical review as something to "address" — only the current `spec-review.json` and `human-guidance.md` are direct feedback.
 
 ### Other Inputs
 
@@ -124,19 +138,27 @@ No other status values.
 ## Algorithm
 
 1. Read `.strut-pipeline/classification.json`, `.strut-pipeline/spec-refinement/intent.json`, `.strut-pipeline/impact-scan.md`, `.strut-pipeline/truth-repo-impact-scan-result.json`. If any required file is missing or malformed, write `failed` result and stop.
-2. Check for `.strut-pipeline/pr-rejection-feedback.json`. If it exists, load as `feedback_source` and ignore any `spec-review.json`. Otherwise, check for `.strut-pipeline/spec-refinement/spec-review.json`; if present, load as `feedback_source`. Otherwise `feedback_source` is none.
-3. If `feedback_source` is none (fresh draft): `rm -f .strut-pipeline/spec-refinement/spec.json` to clear any stale file from a prior run.
-4. If `feedback_source` is set (revision pass): read the existing `.strut-pipeline/spec-refinement/spec.json` before composing. For every criterion, field, and value NOT mentioned in the feedback, preserve it exactly as-is. Only modify what the feedback specifically names. Do not rewrite criteria that were not flagged.
-5. Execute the Plan Mode Directive below. The plan guides internal reasoning — it does not need to appear in the final message.
-6. Compose `what` by echoing `classification.json.what` verbatim.
-7. Compose `user_sees` by echoing `intent.json.user_sees` verbatim.
-8. Compose positive criteria. Each entry must be independently testable in Given/When/Then form with a stable `id` (C1, C2, …) and `type: "positive"`. Ground each criterion in evidence from `intent.json` and the scan — not in what could plausibly be wanted.
-9. Compose negative criteria from `must_never` (trust ON only). If `intent.json.must_never` is non-empty, each entry becomes an additional criterion with `type: "negative"` and a `source` field echoing the `must_never` entry verbatim. Frame the Given/When/Then as: Given the precondition, When the violation is attempted, Then it is actively rejected (error raised, status code returned, mutation blocked — not silently ignored). For immutability constraints (data that cannot be modified after a protected state like published, finalized, archived), produce two criteria: one for the application layer (the mutation function rejects) and one for the database layer (the database policy rejects, even if application code is bypassed). If `must_never` is empty, skip this step.
-10. Compose `implementation_notes` by copying `files_to_modify`, `patterns_to_follow`, and `files_to_reference` from the scan sources. Do not invent paths. Do not reshape reasons.
-11. Compose `out_of_scope[]` with at least one entry, grounded in `intent.json` boundaries and `classification.json` scope. If none is evident, state the smallest adjacent concern explicitly excluded by the change.
-12. Compose `tasks[]` with exactly one task for the standard path: `{ "id": "task-1", "description": "...", "criteria_ids": [every C-id] }`. Negative criteria are included in `criteria_ids` alongside positive ones — they belong to the same task. Verify the union of `criteria_ids` across all tasks equals the set of `criteria[].id` values.
-13. If `feedback_source` is set, address every issue it names in the revised output: each `review_issues[]` entry, each `validation_issues[]` entry (for spec-review), or the human feedback text (for pr-rejection). One revision folds all feedback.
-14. Write `.strut-pipeline/spec-refinement/spec.json` with `status: "drafted"`. Stop.
+2. Discover feedback sources in precedence order:
+   - If `.strut-pipeline/pr-rejection-feedback.json` exists, load as `feedback_source` and ignore any `spec-review.json`.
+   - Else if `.strut-pipeline/spec-refinement/human-guidance.md` exists, load as `feedback_source`. Also load `spec-review.json` if present (the human guidance directs the approach; the latest review still informs which issues to fix).
+   - Else if `.strut-pipeline/spec-refinement/spec-review.json` exists, load as `feedback_source`.
+   - Else `feedback_source` is none (fresh draft).
+3. Load historical context (read each file that exists; do not fail if absent):
+   - All files matching `.strut-pipeline/spec-refinement/iterations/iter-*-review.json` (current round's prior failures).
+   - All files matching `.strut-pipeline/spec-refinement/iterations-archive/round-*/iter-*-review.json` (earlier rounds' failures, if guidance has been given before).
+   - These are regression-avoidance context, NOT issues to "address" line-by-line.
+4. If `feedback_source` is none (fresh draft): `rm -f .strut-pipeline/spec-refinement/spec.json` to clear any stale file from a prior run.
+5. If `feedback_source` is set (revision pass): read the existing `.strut-pipeline/spec-refinement/spec.json` before composing. For every criterion, field, and value NOT mentioned in the active feedback, preserve it exactly as-is. Only modify what the feedback specifically names. Do not rewrite criteria that were not flagged.
+6. Execute the Plan Mode Directive below. The plan guides internal reasoning — it does not need to appear in the final message.
+7. Compose `what` by echoing `classification.json.what` verbatim.
+8. Compose `user_sees` by echoing `intent.json.user_sees` verbatim.
+9. Compose positive criteria. Each entry must be independently testable in Given/When/Then form with a stable `id` (C1, C2, …) and `type: "positive"`. Ground each criterion in evidence from `intent.json` and the scan — not in what could plausibly be wanted.
+10. Compose negative criteria from `must_never` (trust ON only). If `intent.json.must_never` is non-empty, each entry becomes an additional criterion with `type: "negative"` and a `source` field echoing the `must_never` entry verbatim. Frame the Given/When/Then as: Given the precondition, When the violation is attempted, Then it is actively rejected (error raised, status code returned, mutation blocked — not silently ignored). For immutability constraints (data that cannot be modified after a protected state like published, finalized, archived), produce two criteria: one for the application layer (the mutation function rejects) and one for the database layer (the database policy rejects, even if application code is bypassed). If `must_never` is empty, skip this step.
+11. Compose `implementation_notes` by copying `files_to_modify`, `patterns_to_follow`, and `files_to_reference` from the scan sources. Do not invent paths. Do not reshape reasons.
+12. Compose `out_of_scope[]` with at least one entry, grounded in `intent.json` boundaries and `classification.json` scope. If none is evident, state the smallest adjacent concern explicitly excluded by the change.
+13. Compose `tasks[]` with exactly one task for the standard path: `{ "id": "task-1", "description": "...", "criteria_ids": [every C-id] }`. Negative criteria are included in `criteria_ids` alongside positive ones — they belong to the same task. Verify the union of `criteria_ids` across all tasks equals the set of `criteria[].id` values.
+14. Address active feedback. If `feedback_source` is `pr-rejection-feedback.json`: address the human feedback text. If `feedback_source` is `human-guidance.md`: treat the guidance as authoritative — adjust scope, criteria, or approach as it directs, and also address any `spec-review.json` issues consistent with the guidance. If `feedback_source` is `spec-review.json`: address every `review_issues[]` and `validation_issues[]` entry. Cross-check against historical context from Step 3: do not regress on issues that earlier iterations flagged and previously fixed.
+15. Write `.strut-pipeline/spec-refinement/spec.json` with `status: "drafted"`. Stop.
 
 ## Plan Mode Directive
 
@@ -149,6 +171,8 @@ Before writing spec.json, audit your planned spec against the intent:
 - List every must_never entry. Confirm each has its own negative criterion. Confirm immutability constraints produced TWO criteria (app + db layer for each distinct prohibited action).
 - Verify the union of criteria_ids across all tasks equals the full set of criteria[].id values.
 - Verify all file paths in implementation_notes come from the scan, not invented.
+- **Regression check (if historical context was loaded):** scan the prior `iter-*-review.json` files. For each issue that was flagged and subsequently fixed, confirm your spec still embodies the fix. If you've reintroduced an issue that was previously addressed, fix it before writing.
+
 If you find gaps, fix them before writing.
 
 ## Anti-Rationalization Rules
@@ -160,6 +184,8 @@ If you find gaps, fix them before writing.
 - Thinking "I should rewrite the spec from scratch to address the feedback"? Stop. On revision, preserve everything the feedback did not flag. Read the existing spec.json first. Only change what the review named as an issue.
 - Thinking "this must_never entry is already covered by a positive criterion"? Stop. Negative criteria test that violations are rejected. Positive criteria test that correct behavior works. Both are needed — they test different things.
 - Thinking "I can combine two must_never entries into one negative criterion"? Stop. Each must_never entry gets its own criterion so each gets its own test. Combining dilutes testability.
+- Thinking "the iteration history says X was flagged before, I should re-flag X in my reasoning"? Stop. Iteration history is for *avoiding regression*, not for cataloging. If the current spec already addresses an issue that was flagged in iter-2 and fixed in iter-3, leave it fixed — don't re-introduce the issue or the fix discussion.
+- Thinking "human-guidance contradicts the latest spec-review, I'll find a middle ground"? Stop. When guidance and review conflict, guidance wins. The human spoke at the spec_stuck gate precisely because the agents weren't converging — your job is to follow the guidance, not negotiate with it.
 
 ## Boundary Constraints
 

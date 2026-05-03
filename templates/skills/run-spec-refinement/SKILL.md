@@ -1,6 +1,6 @@
 ---
 name: run-spec-refinement
-description: Sub-orchestrator for the spec cycle. Dispatches derive-intent, write-spec, and review-spec in sequence. Manages the write→review feedback loop with a max 5 iteration budget. Runs in Process Change, dispatched by run-process-change.
+description: Sub-orchestrator for the spec cycle. Dispatches derive-intent, write-spec, and review-spec in sequence. Manages the write→review feedback loop with a 5-iteration budget per round; archives iterations to support spec-write learning across attempts and gates to a spec_stuck escalation when the budget is exhausted. Runs in Process Change, dispatched by run-process-change.
 ---
 
 # run-spec-refinement
@@ -21,7 +21,13 @@ Derive structured intent, produce a spec, review it for quality and testability,
 
 - `.strut-pipeline/spec-refinement/intent.json` — status check after derive-intent
 - `.strut-pipeline/spec-refinement/spec.json` — status check after spec-write
-- `.strut-pipeline/spec-refinement/spec-review.json` — status check after spec-review; on failure, this file becomes spec-write's feedback source on the next iteration
+- `.strut-pipeline/spec-refinement/spec-review.json` — status check after spec-review
+
+### Files Read (filesystem state, not routing)
+
+- `.strut-pipeline/spec-refinement/iterations/iter-*-spec.json` — counted (only) to derive the current iteration number for naming the next archive
+
+This skill does not read content fields from any spec-refinement file. spec-write and spec-review read iteration content for their own purposes; this orchestrator routes on existence and counts only.
 
 ### Other Inputs
 
@@ -41,17 +47,22 @@ If any prerequisite is missing, say: `Missing Read Truth output. Run Read Truth 
 
 ### Result Files
 
-None. Outputs are the files the dispatched agents write:
+- `.strut-pipeline/spec-refinement/spec-refinement-result.json` — written by this skill ONLY when the iteration budget is exhausted. Schema: `{ "skill": "run-spec-refinement", "status": "exhausted", "iterations": <count>, "iterations_dir": ".strut-pipeline/spec-refinement/iterations/" }`. On a successful pass, this file is not written; run-process-change checks for its presence to detect exhaustion.
 
-- `.strut-pipeline/spec-refinement/intent.json` (written by spec-derive-intent)
-- `.strut-pipeline/spec-refinement/spec.json` (written by spec-write)
-- `.strut-pipeline/spec-refinement/spec-review.json` (written by spec-review)
+The dispatched agents also write:
+
+- `.strut-pipeline/spec-refinement/intent.json` (spec-derive-intent)
+- `.strut-pipeline/spec-refinement/spec.json` (spec-write — current draft)
+- `.strut-pipeline/spec-refinement/spec-review.json` (spec-review — current review)
+- `.strut-pipeline/spec-refinement/iterations/iter-N-spec.json` and `iter-N-review.json` — archived copies of failed iterations, written by this skill before re-dispatching spec-write. Final passing iteration is NOT archived (its content is the same as `spec.json`).
 
 ### Return to run-process-change
 
-On success: return with `.strut-pipeline/spec-refinement/spec-review.json` containing `status: "passed"` and `.strut-pipeline/spec-refinement/spec.json` as the approved spec.
+On success: return with `spec-review.json` containing `status: "passed"` and `spec.json` as the approved spec.
 
-On failure: report the failure reason and stop. run-process-change escalates to human.
+On exhaustion: write `spec-refinement-result.json` with `status: "exhausted"` and stop. run-process-change reads this file and routes to the spec_stuck gate.
+
+On other failures (intent/spec/review missing or malformed): report the failure reason and stop. run-process-change escalates to human.
 
 ## Dispatch Sequence
 
@@ -59,11 +70,17 @@ On failure: report the failure reason and stop. run-process-change escalates to 
 
 ```bash
 mkdir -p .strut-pipeline/spec-refinement
+mkdir -p .strut-pipeline/spec-refinement/iterations
+rm -f .strut-pipeline/spec-refinement/spec-refinement-result.json
 ```
 
 Check that `.strut-pipeline/classification.json`, `.strut-pipeline/impact-scan.md`, and `.strut-pipeline/truth-repo-impact-scan-result.json` all exist. If any is missing, say: `Missing Read Truth output: [name]. Run Read Truth first.` Stop.
 
-Initialize the iteration counter: `iteration = 0`.
+This skill does NOT manage round transitions. Whatever state is on disk in `.strut-pipeline/spec-refinement/` is what spec-write and spec-review consume. run-process-change owns the new-run cleanup and the spec_stuck-guidance round transition (move `iterations/` → `iterations-archive/round-N/`, write `human-guidance.md`); see that skill's Step 0 (new run) and Step 6c (spec_stuck resume) for the mechanics.
+
+The iteration counter is always derived from the filesystem: `iteration = count of iterations/iter-*-spec.json files + 1` (the +1 accounts for the about-to-be-dispatched iteration). Never track iteration in conversation memory.
+
+The budget is hardcoded at **5** per round.
 
 ### Step 2: Dispatch derive-intent
 
@@ -78,9 +95,9 @@ When the agent completes, check: does `.strut-pipeline/spec-refinement/intent.js
 
 ### Step 3: Dispatch spec-write
 
-Increment: `iteration = iteration + 1`.
+Compute the current iteration: `iteration = (count of iterations/iter-*-spec.json files) + 1` (the +1 accounts for the dispatch we're about to make).
 
-Dispatch the spec-write agent via the Agent tool with `subagent_type: "spec-write"`. Pass the change request as the prompt.
+Dispatch the spec-write agent via the Agent tool with `subagent_type: "spec-write"`. Pass the change request as the prompt. spec-write reads its full input precedence on its own — `human-guidance.md` (top), `iterations/iter-*-review.json` (current round failures), `iterations-archive/round-*/iter-*-review.json` (archived prior rounds), then `intent.json` and the change request.
 
 When the agent completes, check: does `.strut-pipeline/spec-refinement/spec.json` exist?
 
@@ -102,15 +119,33 @@ When the agent completes, check: does `.strut-pipeline/spec-refinement/spec-revi
   - If `"failed"`: continue to Step 5.
 - **No:** Say `Spec-review did not produce output.` Stop.
 
-### Step 5: Check iteration budget
+### Step 5: Archive iteration and check budget
 
-If `iteration >= 5`: say `Spec cycle exhausted (5 iterations). Last review feedback in .strut-pipeline/spec-refinement/spec-review.json. Escalating to human.` Stop.
+The just-completed iteration failed review. Before deciding whether to retry or escalate, archive the iteration's spec and review (substitute the current `<iteration>` value computed in Step 3):
 
-Otherwise: say `Spec review failed (iteration [iteration] of 5). Re-dispatching spec-write with feedback.`
+```bash
+cp .strut-pipeline/spec-refinement/spec.json        .strut-pipeline/spec-refinement/iterations/iter-<iteration>-spec.json
+cp .strut-pipeline/spec-refinement/spec-review.json .strut-pipeline/spec-refinement/iterations/iter-<iteration>-review.json
+```
+
+After archiving, the iteration count on disk equals the number of iterations completed in this round (always equal to `<iteration>` since we just archived it). If `<iteration>` `>= 5`, the budget is exhausted. Write `spec-refinement-result.json` (substitute the iteration value):
+
+```json
+{
+  "skill": "run-spec-refinement",
+  "status": "exhausted",
+  "iterations": <iteration>,
+  "iterations_dir": ".strut-pipeline/spec-refinement/iterations/"
+}
+```
+
+Say: `Spec cycle exhausted (5 iterations) for this round. Iteration history in .strut-pipeline/spec-refinement/iterations/. Escalating to spec_stuck gate.` Stop. run-process-change reads `spec-refinement-result.json` and routes to the spec_stuck gate.
+
+Otherwise (budget remains): say `Spec review failed (iteration [iteration] of 5). Re-dispatching spec-write with feedback.`
 
 **Step pause.** If `.strut-pipeline/step-mode` exists, say `STEP: spec-review — failed (iteration [iteration] of 5). Output: .strut-pipeline/spec-refinement/spec-review.json. Next: spec-write (retry).` Ask `Continue? (yes / abort)` and wait. If `abort`, say `Pipeline stopped at step pause.` and stop.
 
-Go to Step 3 (dispatch spec-write again). spec-write will read `spec-review.json` as its feedback source per its own input contract.
+Go to Step 3 (dispatch spec-write again). spec-write reads the archived `iter-*-review.json` files plus any `human-guidance.md` per its own input contract.
 
 ## Examples
 
@@ -122,6 +157,7 @@ Read `examples.md` in this skill's directory for a worked write-review loop (ite
 - Thinking "I should read the spec content to understand what went wrong"? Stop. You route on status. spec-write reads the review feedback, not you.
 - Thinking "derive-intent failed, I should try running spec-write anyway"? Stop. spec-write requires intent.json. No intent, no spec.
 - Thinking "5 iterations seems excessive, I should stop at 3"? Stop. The budget is 5. Convergence is spec-write and spec-review's concern, not yours.
+- Thinking "I should detect that this is a guidance-resume run and rearrange iterations/"? Stop. run-process-change does that move before re-dispatching you. Whatever state is on disk is the state you run with.
 
 ## Boundary Constraints
 

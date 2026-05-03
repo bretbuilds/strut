@@ -1,13 +1,13 @@
 ---
 name: run-process-change
-description: Phase orchestrator for the Process Change phase. Handles new-run vs resume detection, dispatches run-spec-refinement, run-implementation, run-build-check, impl-describe-flow (trust ON), and git-tool (pr) in sequence. Owns the human gates (spec approval, task 1 for decompose ON, PR review) and the PR rejection routing. Dispatched by run-strut.
+description: Phase orchestrator for the Process Change phase. Handles new-run vs resume detection, dispatches run-spec-refinement, run-implementation, run-build-check, impl-describe-flow (trust ON), and git-tool (pr) in sequence. Owns the human gates (spec approval, spec stuck, task 1 for decompose ON, PR review) and the PR rejection routing. Dispatched by run-strut.
 ---
 
 # run-process-change
 
 Process Change phase. Dispatched by run-strut. Shared context with run-strut.
 
-Detect new-run vs resume, clean transient Process Change state on a new run, run the spec cycle, pause at the spec approval gate, run the implementation cycle (pausing at the task 1 gate for decompose ON), run build verification, open the PR, pause at the PR review gate, and handle PR rejection routing. Return to run-strut with a passed/failed/aborted result once the human merges or aborts.
+Detect new-run vs resume, clean transient Process Change state on a new run, run the spec cycle (escalating to the spec_stuck gate if the iteration budget is exhausted), pause at the spec approval gate, run the implementation cycle (pausing at the task 1 gate for decompose ON), run build verification, open the PR, pause at the PR review gate, and handle PR rejection routing. Return to run-strut with a passed/failed/aborted result once the human merges or aborts.
 
 This is the largest orchestrator — it owns both human gates and the rejection-path router. Every reasoning step is delegated to a sub-orchestrator or agent.
 
@@ -26,7 +26,9 @@ This is the largest orchestrator — it owns both human gates and the rejection-
 - `.strut-pipeline/classification.json` — routing source of truth. `what` is compared against any prior state's `what` to decide new-run vs resume. `modifiers.trust` is read to conditionally dispatch impl-describe-flow (Step 9). `modifiers.decompose` is read for the task 1 gate routing (Step 7b).
 - `.strut-pipeline/process-change-state.json` — phase-level resume state. Read on every invocation to decide whether to start fresh or resume.
 - `.strut-pipeline/spec-refinement/spec-review.json` — status check after run-spec-refinement.
+- `.strut-pipeline/spec-refinement/spec-refinement-result.json` — existence + status check after run-spec-refinement. Only present when run-spec-refinement exhausts its 5-iteration budget; signals routing to the spec_stuck gate.
 - `.strut-pipeline/spec-refinement/spec.json` — content read at the spec approval gate (Step 6) to render a human-readable summary, plus existence check and `what` reference for state writes. Content fields are NOT used for routing decisions — only for human display, consistent with the "route on status alone" rule.
+- `.strut-pipeline/spec-refinement/iterations/iter-*-review.json` — content read at the spec_stuck gate (Step 5b) to render one-line summaries of each failed iteration. Display only.
 - `.strut-pipeline/implementation/implementation-status.json` — status check after run-implementation.
 - `.strut-pipeline/build-check/build-result.json` — status check after run-build-check.
 - `.strut-pipeline/impl-describe-flow.txt` — existence check after impl-describe-flow (trust ON only).
@@ -63,6 +65,21 @@ Gate pause (spec approval):
   "what": "<from classification.json>",
   "completed": ["spec_refinement"],
   "next": "implementation"
+}
+```
+
+Gate pause (spec_stuck — fires when run-spec-refinement exhausts its 5-iteration budget; valid resume responses are `guidance: <text>` and abort):
+
+```json
+{
+  "skill": "run-process-change",
+  "status": "blocked",
+  "gate": "spec_stuck",
+  "what": "<from classification.json>",
+  "iterations_attempted": 5,
+  "iterations_dir": ".strut-pipeline/spec-refinement/iterations/",
+  "completed": [],
+  "next": "spec_refinement"
 }
 ```
 
@@ -234,6 +251,16 @@ Continue to Step 5 (Spec Refinement).
 
 Based on the resume state's `next` field:
 
+- `next == "spec_refinement"` and `gate == "spec_stuck"` → spec_stuck gate resume. Case-insensitive match on the leading prefix of the response:
+  - `guidance:` followed by **non-empty clarifying text** — strip the `guidance:` prefix and any leading whitespace; if the resulting text is empty or whitespace-only, fall through to the unrecognized-response branch.
+    1. Determine the next round number by listing `.strut-pipeline/spec-refinement/iterations-archive/` — `next_round = (count of existing round-* directories) + 1`. If `iterations-archive/` does not exist, `next_round = 1`.
+    2. Move `.strut-pipeline/spec-refinement/iterations/` to `.strut-pipeline/spec-refinement/iterations-archive/round-<next_round>/`. Use `mkdir -p .strut-pipeline/spec-refinement/iterations-archive` first if needed, then `mv` the directory.
+    3. Recreate an empty `iterations/` directory: `mkdir -p .strut-pipeline/spec-refinement/iterations`.
+    4. Write `.strut-pipeline/spec-refinement/human-guidance.md` with the verbatim text after `guidance:` (no extra processing).
+    5. Remove `spec-refinement-result.json` so the re-dispatched run-spec-refinement starts fresh: `rm -f .strut-pipeline/spec-refinement/spec-refinement-result.json`.
+    6. Go to Step 5 (re-dispatch run-spec-refinement). The sub-orchestrator counts fresh iterations from the now-empty directory; spec-write reads `human-guidance.md` (top priority) and the `iterations-archive/round-*/` history.
+  - `abort` → write `aborted` state with `aborted_at: "spec_stuck"`, say `Pipeline aborted at spec_stuck gate.`, stop.
+  - anything else (including empty response, conversational phrases, `guidance` without a colon, or `guidance:` with no text after it) → say `Unrecognized response. Use "guidance: <non-empty text>" or abort.` Stop without modifying state.
 - `next == "spec_refinement"` → go to Step 5. (Rare — only if the prior invocation exited before dispatching run-spec-refinement.)
 - `next == "implementation"` and `gate == "spec_approval"` → this is a spec-approval-gate resume. Case-insensitive literal match on the first word:
   - `continue` or `approve` → go to Step 6b (Adversarial Spec Attack check). Step 6b conditionally fires the adversarial gate on guarded-decompose, or falls through to Step 7.
@@ -270,12 +297,74 @@ Skip this step if `completed` already includes `spec_refinement` AND `.strut-pip
 
 Dispatch the run-spec-refinement skill via the Skill tool. No `args` needed — it reads the change request from conversation context and pipeline state.
 
-When the sub-orchestrator returns, check: does `.strut-pipeline/spec-refinement/spec-review.json` exist?
+When the sub-orchestrator returns, route in this order:
 
-- **Yes:** Read ONLY the `status` field.
-  - `"passed"` → append `"spec_refinement"` to `completed`. Continue to Step 6.
-  - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary referencing `.strut-pipeline/spec-refinement/spec-review.json`. Stop.
-- **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary naming the missing output. Stop.
+1. **Check for exhaustion first.** Does `.strut-pipeline/spec-refinement/spec-refinement-result.json` exist?
+   - **Yes**: Read ONLY the `status` field.
+     - `"exhausted"` → run-spec-refinement burned its 5-iteration budget. Go to Step 5b (spec_stuck gate).
+     - any other status → unexpected; treat as failure: overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, summary referencing the result file. Stop.
+   - **No**: continue to step 2 below.
+
+2. **Check spec-review.json.** Does it exist?
+   - **Yes:** Read ONLY the `status` field.
+     - `"passed"` → append `"spec_refinement"` to `completed`. Continue to Step 6.
+     - `"failed"` → overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary referencing `.strut-pipeline/spec-refinement/spec-review.json`. Stop.
+   - **No:** Overwrite `process-change-state.json` with `status: "failed"`, `failed_at: "spec_refinement"`, and a summary naming the missing output. Stop.
+
+### Step 5b: Gate — spec_stuck (run-spec-refinement exhausted its budget)
+
+This step runs only when `spec-refinement-result.json` reports `status: "exhausted"`. The 5-iteration budget for the current round expired without a passing spec.
+
+Read `iterations_attempted` from `spec-refinement-result.json`.
+
+Build iteration summaries for display: for each `.strut-pipeline/spec-refinement/iterations/iter-*-review.json` (in numeric order by iteration), extract a one-line summary. Prefer the review's `summary` field; if absent or empty, synthesize a one-liner from the first entry of `review_issues[]` or `validation_issues[]` (e.g., `"<criterion_id>: <issue>"`). Render only — do not analyze or aggregate further.
+
+Overwrite `.strut-pipeline/process-change-state.json` with:
+
+```json
+{
+  "skill": "run-process-change",
+  "status": "blocked",
+  "gate": "spec_stuck",
+  "what": "<current_what>",
+  "iterations_attempted": <from result file>,
+  "iterations_dir": ".strut-pipeline/spec-refinement/iterations/",
+  "completed": [],
+  "next": "spec_refinement"
+}
+```
+
+Say:
+
+```
+─────────────────────────────────────
+SPEC STUCK GATE
+─────────────────────────────────────
+<N> iterations attempted; none passed review.
+
+Iteration history:
+  Iter 1 — <one-line summary from iter-1-review.json>
+  Iter 2 — <one-line summary>
+  ...
+  Iter <N> — <one-line summary>
+
+The spec-write/spec-review loop did not converge automatically. Human input
+can break the impasse — for example, restricting scope, accepting a concern,
+or redirecting the approach.
+
+Iteration files (for deeper inspection):
+  .strut-pipeline/spec-refinement/iterations/
+
+Respond at the next /run-strut invocation:
+  - "guidance: <text>"   — clarifying input. Spec refinement re-runs for up to
+                            5 more iterations with your guidance as the
+                            highest-priority input. Example:
+                            "guidance: scope excludes inheritance criterion."
+  - "abort"              — stop the pipeline.
+─────────────────────────────────────
+```
+
+Stop. Do not proceed. Do not ask anything beyond the prompt above.
 
 ### Step 6: Gate 1 — Spec Approval
 
@@ -577,13 +666,15 @@ Read `examples.md` in this skill's directory for worked examples of gate respons
 - Thinking "I should read spec.json's content to pass context to run-implementation"? Stop. Sub-orchestrators read their own inputs from file contracts. You do not pass content via conversation.
 - Thinking "the state file is inconsistent with the files on disk — I should reconcile"? Stop. State and files can disagree only after a crash or manual edit. If a resume's `next` points at a stage whose output file is missing or failed, dispatch that stage fresh. Do not invent reconciliation logic beyond the per-step `completed` + file-status check.
 - Thinking "task 1 passed review, the remaining tasks will be fine — I'll skip the task_1 gate to save time"? Stop. Decompose ON means the task_1 gate fires after task 1's commit. The classification stands. You do not evaluate whether the gate is warranted.
+- Thinking "run-spec-refinement exhausted its budget but the latest spec looks acceptable to me — I'll skip the spec_stuck gate and proceed"? Stop. Exhaustion means the agents could not converge. The human decides whether to inject guidance, force-accept, or abort. You write the gate state and stop.
+- Thinking "the human's `guidance:` text is vague — I should rewrite it before saving"? Stop. Write the verbatim text after `guidance:` to `human-guidance.md`. spec-write reads it. You do not edit, summarize, or interpret human input.
 
 ## Boundary Constraints
 
 - Dispatch only: run-spec-refinement, run-implementation, run-build-check, impl-describe-flow (trust ON only), git-tool (pr). Decompose ON activates the task-1 gate routing in Steps 4 and 7b; the dispatch sequence itself is unchanged.
 - Do not derive intent, write specs, review specs, write tests, write code, review code, run builds, cleanup build errors, commit, or open PRs itself. All of that is delegated.
 - Do not read content fields from agent or sub-orchestrator result files beyond the declared routing fields (`status`, `pr_url`, and the `what` comparison from `classification.json`).
-- Do not modify any source, test, spec, or pipeline file except `.strut-pipeline/process-change-state.json` and `.strut-pipeline/pr-rejection-feedback.json`, plus the explicit `rm -rf` / `rm -f` cleanups in Step 3 and Step 11.
+- Do not modify any source, test, spec, or pipeline file except `.strut-pipeline/process-change-state.json`, `.strut-pipeline/pr-rejection-feedback.json`, and (on spec_stuck guidance resume) `.strut-pipeline/spec-refinement/human-guidance.md` plus the `iterations/` → `iterations-archive/round-N/` move. Plus the explicit `rm -rf` / `rm -f` cleanups in Step 3 and Step 11.
 - Do not scan the codebase. No `Grep`/`Glob`.
 - Do not override modifiers. run-strut owns override. This skill reads classification.json as-is.
 - Do not retry sub-orchestrators. Each sub-orchestrator owns its retry budget; a `failed` from one is terminal at this level.
